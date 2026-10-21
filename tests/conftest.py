@@ -87,16 +87,12 @@ def warehouse(tmp_path_factory, fetcher) -> Path:
 
 @pytest.fixture()
 def con(warehouse):
-    """Read-write on purpose: DuckDB refuses mixed read_only/read_write handles to
-    the same file, and the report fixtures need a writable connection anyway."""
-    connection = db.connect(warehouse)
-    yield connection
-    connection.close()
+    """One handle per test.
 
-
-@pytest.fixture()
-def write_con(warehouse):
-    """A writable connection for tests that build reports."""
+    DuckDB refuses mixed read_only/read_write handles to the same file, and on
+    Windows two concurrent write handles can collide outright. A single writable
+    connection avoids the whole class of problem.
+    """
     connection = db.connect(warehouse)
     yield connection
     connection.close()

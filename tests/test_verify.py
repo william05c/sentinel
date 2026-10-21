@@ -14,10 +14,10 @@ AS_OF = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
 @pytest.fixture()
-def built(write_con, tmp_path):
+def built(con, tmp_path):
     paths = Paths.build(tmp_path)
     paths.ensure()
-    result = dossier.build(write_con, paths, 320193, as_of=AS_OF, years=5)
+    result = dossier.build(con, paths, 320193, as_of=AS_OF, years=5)
     return result, tmp_path
 
 
