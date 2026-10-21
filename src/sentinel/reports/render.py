@@ -122,7 +122,8 @@ class Binder:
         fmt: str = "money",
         refs: list[str] | None = None,
     ) -> None:
-        value = self.con.execute(sql, params).fetchone()
+        rows = self.con.execute(sql, params).fetchall()
+        value = rows[0] if rows else None
         if value is None or value[0] is None:
             rendered = "n/a"
         else:

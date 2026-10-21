@@ -121,11 +121,11 @@ def materialize(con, cik: int, as_of: datetime | None = None) -> int:
     frame = build_canonical(con, cik, as_of)
     if frame.empty:
         return 0
-    con.execute("DELETE FROM fact_xbrl_canonical WHERE cik = ?", [cik])
+    db.run(con, "DELETE FROM fact_xbrl_canonical WHERE cik = ?", [cik])
     con.register("_canon", frame)
     try:
         cols = ", ".join(frame.columns)
-        con.execute("INSERT INTO fact_xbrl_canonical (" + cols + ") SELECT " + cols + " FROM _canon")
+        db.run(con, "INSERT INTO fact_xbrl_canonical (" + cols + ") SELECT " + cols + " FROM _canon")
     finally:
         con.unregister("_canon")
     return len(frame)

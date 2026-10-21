@@ -150,11 +150,19 @@ def build(con, paths, cik: int, *, as_of: datetime | None = None, years: int = 5
         "ORDER BY source_system",
         [cik],
     )
+    def _stamp(value) -> str | None:
+        """One canonical timestamp form in the document: 2026-01-05T00:00:00Z."""
+        if not pd.notna(value):
+            return None
+        ts = pd.Timestamp(value)
+        ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+        return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     provenance_sources = [
         {
             "source": row["source_system"],
             "url": row["source_url"],
-            "retrieved_at": row["retrieved_at"].isoformat() if pd.notna(row["retrieved_at"]) else None,
+            "retrieved_at": _stamp(row["retrieved_at"]),
         }
         for _, row in sources.iterrows()
     ]

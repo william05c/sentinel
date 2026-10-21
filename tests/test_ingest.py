@@ -21,26 +21,19 @@ def test_ingest_writes_company_and_filings(con):
     assert canonical > 100
 
 
-def test_ingest_is_idempotent(warehouse, fetcher):
-    """Running the same ingest twice must not duplicate rows."""
-    before = db.connect(warehouse)
-    counts_before = db.table_counts(before)
-    digest_before = before.execute(
-        "SELECT COUNT(*), SUM(value), SUM(LENGTH(COALESCE(accession, ''))) FROM fact_xbrl"
-    ).fetchone()
-    before.close()
-
-    con = db.connect(warehouse)
+def test_ingest_is_idempotent(con, fetcher):
+    """Running the same ingest twice must not duplicate a single row."""
     from sentinel.ingest import ingest_company
-    ingest_company(con, fetcher, 320193)
-    con.close()
 
-    after = db.connect(warehouse)
-    counts_after = db.table_counts(after)
-    digest_after = after.execute(
-        "SELECT COUNT(*), SUM(value), SUM(LENGTH(COALESCE(accession, ''))) FROM fact_xbrl"
-    ).fetchone()
-    after.close()
+    digest_sql = "SELECT COUNT(*), SUM(value), SUM(LENGTH(COALESCE(accession, ''))) FROM fact_xbrl"
+
+    counts_before = db.table_counts(con)
+    digest_before = con.execute(digest_sql).fetchall()[0]
+
+    ingest_company(con, fetcher, 320193)
+
+    counts_after = db.table_counts(con)
+    digest_after = con.execute(digest_sql).fetchall()[0]
 
     assert counts_before["fact_xbrl"] == counts_after["fact_xbrl"]
     assert counts_before["fact_filing"] == counts_after["fact_filing"]

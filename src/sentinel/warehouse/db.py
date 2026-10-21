@@ -51,14 +51,23 @@ def replace_rows(
     try:
         cols = ", ".join(chr(34) + c + chr(34) for c in frame.columns)
         join = " AND ".join("t." + chr(34) + k + chr(34) + " = i." + chr(34) + k + chr(34) for k in keys)
-        con.execute(
+        run(con,
             "DELETE FROM " + table + " AS t WHERE EXISTS "
-            "(SELECT 1 FROM _incoming AS i WHERE " + join + ")"
-        )
-        con.execute("INSERT INTO " + table + " (" + cols + ") SELECT " + cols + " FROM _incoming")
+            "(SELECT 1 FROM _incoming AS i WHERE " + join + ")")
+        run(con, "INSERT INTO " + table + " (" + cols + ") SELECT " + cols + " FROM _incoming")
     finally:
         con.unregister("_incoming")
     return len(frame)
+
+
+def run(con: duckdb.DuckDBPyConnection, sql: str, params: Iterable | None = None) -> None:
+    """Execute a statement whose result we do not want, and consume it.
+
+    DuckDB keeps a result handle open until it is drained. An un-drained DELETE makes
+    the next statement on the same connection fail with ResourceInUseException, which
+    is how a second ingest in one process breaks while the first looks fine.
+    """
+    con.execute(sql, list(params) if params is not None else None).fetchall()
 
 
 def query(con: duckdb.DuckDBPyConnection, sql: str, params: Iterable | None = None) -> pd.DataFrame:
@@ -66,8 +75,14 @@ def query(con: duckdb.DuckDBPyConnection, sql: str, params: Iterable | None = No
 
 
 def scalar(con: duckdb.DuckDBPyConnection, sql: str, params: Iterable | None = None):
-    row = con.execute(sql, list(params) if params is not None else None).fetchone()
-    return row[0] if row else None
+    """First column of the first row, with the whole result drained.
+
+    fetchone() leaves the remaining result open, and an open result blocks the next
+    statement on the same connection. This is the single most common way a DuckDB
+    session deadlocks itself.
+    """
+    rows = con.execute(sql, list(params) if params is not None else None).fetchall()
+    return rows[0][0] if rows else None
 
 
 def table_counts(con: duckdb.DuckDBPyConnection) -> dict[str, int]:

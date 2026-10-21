@@ -1,7 +1,13 @@
 """Offline fixtures.
 
-Nothing in this suite touches the network. The SEC payloads here were captured
-once and committed; the parsers run against them exactly as they do in production.
+Nothing in this suite touches the network: the SEC payloads were captured once and
+committed, and the parsers run over them exactly as they do in production.
+
+The warehouse is IN MEMORY, module-scoped, with a fresh cursor per test. A file-backed
+DuckDB was tried first and produced two distinct failures that had nothing to do with
+the code: a transient file lock on a CI runner, and ResourceInUseException when one
+test's statement was still open while another began. Tests should not be able to fail
+for reasons unrelated to the behaviour under test.
 """
 
 from __future__ import annotations
@@ -74,25 +80,20 @@ def fetcher(submissions, companyfacts) -> FakeFetcher:
     })
 
 
-@pytest.fixture(scope="session")
-def warehouse(tmp_path_factory, fetcher) -> Path:
-    """A real DuckDB warehouse ingested once and shared read-only by the suite."""
-    path = tmp_path_factory.mktemp("warehouse") / "sentinel.duckdb"
-    con = db.init(path)
-    ensure_tag_map(con)
-    ingest_company(con, fetcher, CIK)
-    con.close()
-    return path
+@pytest.fixture(scope="module")
+def warehouse(fetcher):
+    """One in-memory warehouse per test module, ingested once."""
+    connection = db.connect(":memory:")
+    connection.execute(db.SCHEMA_PATH.read_text(encoding="utf-8"))
+    ensure_tag_map(connection)
+    ingest_company(connection, fetcher, CIK)
+    yield connection
+    connection.close()
 
 
 @pytest.fixture()
 def con(warehouse):
-    """One handle per test.
-
-    DuckDB refuses mixed read_only/read_write handles to the same file, and on
-    Windows two concurrent write handles can collide outright. A single writable
-    connection avoids the whole class of problem.
-    """
-    connection = db.connect(warehouse)
-    yield connection
-    connection.close()
+    """A cursor gives each test its own handle on the shared in-memory database."""
+    cursor = warehouse.cursor()
+    yield cursor
+    cursor.close()

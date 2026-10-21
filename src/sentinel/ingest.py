@@ -92,12 +92,12 @@ def ingest_company(con, fetcher, cik: int, *, run_id: str | None = None) -> dict
             allowed_tags=sec.dictionary_tags(metrics_config()),
             accepted_at_by_accession=accepted,
         )
-        con.execute("DELETE FROM fact_xbrl WHERE cik = ?", [cik])
+        db.run(con, "DELETE FROM fact_xbrl WHERE cik = ?", [cik])
         if not facts.empty:
             con.register("_facts", _naive(facts))
             try:
                 cols = ", ".join(facts.columns)
-                con.execute("INSERT INTO fact_xbrl (" + cols + ") SELECT " + cols + " FROM _facts")
+                db.run(con, "INSERT INTO fact_xbrl (" + cols + ") SELECT " + cols + " FROM _facts")
             finally:
                 con.unregister("_facts")
         counts["xbrl"] = len(facts)

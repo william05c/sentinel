@@ -118,3 +118,51 @@ against SEC's independently-served concept endpoint, exact to the dollar.
 - Ingestion filters company facts to dictionary tags, so a tag outside
   `config/metrics.yaml` is not stored. Documented in LIMITATIONS.md.
 - No Parquet cold store yet (`pyarrow` is declared but unused).
+
+---
+
+## Post-gate: CI hardening (2026-10-21)
+
+**Commits:** `6e05493` single warehouse handle · this commit
+
+The first two CI runs each failed exactly one of the four matrix legs — a different one
+each time, while all four passed locally (12/12, twice). That pattern says environment,
+not logic, and only the job log settles it. GitHub's log API needs a token, so the log
+was fetched with the credentials already configured on the machine and read directly.
+
+**The actual failure** was `test_clean_report_verifies`: three numbers in the prose that
+no binding explained — `00`, `23`, `294485`.
+
+**Three root causes, all in the verifier's stripping order**
+
+1. **Bound values were removed from inside identifiers.** A rendered count of `26` was
+   cut out of the minute field of `15:26:16`, leaving fragments the scanner then
+   reported as unbound data. Identifiers must be stripped before values.
+2. **Timestamps with a space separator were not recognised** (`2026-01-05 00:00:00`),
+   because the pattern required a literal `T`. A bare time-of-day is never a financial
+   figure, so it is now allowlisted explicitly.
+3. **One stripping list was doing two incompatible jobs.** Running the form-name pattern
+   before value removal matched `2B` inside `$416.2B` and destroyed a legitimate figure.
+   The verifier now has two phases: identifiers first, loose tokens last.
+
+**A fourth defect, found by the test that was supposed to be about idempotency**
+
+`ingest_company` on the same connection failed the second time with
+`ResourceInUseException`. DuckDB keeps a result handle open until it is drained, and an
+un-drained `DELETE` blocks the next statement. In production this would have meant *one
+ingest per process* — the second silently impossible. Fixed with `db.run()`, which
+consumes the result, and `db.scalar()`, which now drains instead of `fetchone()`.
+
+**Test infrastructure changed for the same reason.** A file-backed DuckDB produced two
+unrelated failure modes on CI (a transient file lock, then a connection conflict). The
+suite now uses a module-scoped in-memory database with a fresh cursor per test. Tests
+should not be able to fail for reasons that have nothing to do with the code.
+
+**Evidence after the fixes**
+
+    > pytest -q
+    12 passed in 1.57s
+    > (eight consecutive runs)  failures: 0 of 8
+
+    > sentinel verify 2026-10-21_dossier_AAPL.md   -> PASS (71/71)
+    > sentinel verify 2020-01-01_dossier_AAPL.md   -> PASS (71/71)
