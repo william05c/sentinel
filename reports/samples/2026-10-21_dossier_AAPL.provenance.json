@@ -1,0 +1,18 @@
+{
+ "kind": "dossier",
+ "subject": "AAPL",
+ "cik": 320193,
+ "as_of": "2026-10-21T15:16:53.595601+00:00",
+ "generated_at": "2026-10-21T15:16:53.743140+00:00",
+ "snapshot_hash": "16e039f8ee44a20c",
+ "generator_version": "0.1.0",
+ "sources": [
+  {
+   "source": "sec_edgar",
+   "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+   "retrieved_at": "2026-10-21T23:13:45.754666"
+  }
+ ],
+ "accessions_used": 43,
+ "degraded": []
+}
