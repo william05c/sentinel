@@ -1,0 +1,63 @@
+# Source registry. Every adapter declares its own limits; the fetcher enforces them.
+# This file is the machine-readable half of docs/SOURCE_REGISTRY.md — keep them in step.
+
+defaults:
+  max_retries: 4
+  timeout_s: 60
+  backoff_base_s: 1.5
+  backoff_cap_s: 30
+
+sources:
+  sec_www:
+    description: "SEC EDGAR website: submissions, archives, indexes, bulk datasets"
+    hosts: ["www.sec.gov"]
+    requests_per_second: 8      # SEC allows 10; we stay under it by design
+    burst: 3
+    cache_ttl_s: 86400
+    license: "US Government work (public domain). Fair access policy applies."
+    enabled: true
+
+  sec_data:
+    description: "SEC structured data APIs: companyfacts, companyconcept, frames"
+    hosts: ["data.sec.gov"]
+    requests_per_second: 8
+    burst: 3
+    cache_ttl_s: 86400
+    license: "US Government work (public domain). Fair access policy applies."
+    enabled: true
+
+  sec_efts:
+    description: "EDGAR full-text search API"
+    hosts: ["efts.sec.gov"]
+    requests_per_second: 5
+    burst: 2
+    cache_ttl_s: 3600
+    license: "US Government work (public domain)."
+    enabled: true
+
+  stooq:
+    description: "Daily prices. Unofficial, third-party. DISABLED by default."
+    hosts: ["stooq.com"]
+    requests_per_second: 1
+    burst: 1
+    cache_ttl_s: 86400
+    license: "Third-party site; no formal licence. Disabled by default; see LIMITATIONS."
+    enabled: false
+
+  fred:
+    description: "Macro series (requires a free API key)"
+    hosts: ["api.stlouisfed.org"]
+    requests_per_second: 2
+    burst: 1
+    cache_ttl_s: 86400
+    license: "Free API; attribution required."
+    enabled: false
+
+  ken_french:
+    description: "Factor returns"
+    hosts: ["mba.tuck.dartmouth.edu"]
+    requests_per_second: 1
+    burst: 1
+    cache_ttl_s: 604800
+    license: "Free for research use; attribution required."
+    enabled: false

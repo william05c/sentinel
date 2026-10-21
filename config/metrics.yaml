@@ -1,0 +1,256 @@
+# Canonical metric dictionary.
+#
+# The tag chain is ORDERED: the first tag present for a period wins. This exists
+# because revenue, for example, arrives as RevenueFromContractWithCustomerExcludingAssessedTax
+# after ASC 606 but as Revenues or SalesRevenueNet before it, and the choice of tag
+# is itself a data point worth surfacing.
+#
+# period:
+#   instant  - a point in time (balance sheet)
+#   duration - a span (income statement, cash flow)
+#
+# Every metric must stay in the three statements plus shares. Derived ratios are
+# computed in code, not stored here.
+
+version: 1
+
+metrics:
+  - id: revenue
+    label: "Revenue"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Total revenue from contracts with customers, as reported."
+    tags: [RevenueFromContractWithCustomerExcludingAssessedTax, Revenues, RevenueFromContractWithCustomerIncludingAssessedTax, SalesRevenueNet, SalesRevenueGoodsNet, RevenuesNetOfInterestExpense]
+
+  - id: cost_of_revenue
+    label: "Cost of revenue"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Direct cost attributable to revenue."
+    tags: [CostOfRevenue, CostOfGoodsAndServicesSold, CostOfGoodsSold, CostOfRevenueExcludingDepreciationDepletionAndAmortization]
+
+  - id: gross_profit
+    label: "Gross profit"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Revenue less cost of revenue."
+    tags: [GrossProfit]
+
+  - id: operating_income
+    label: "Operating income"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Income from operations before non-operating items and tax."
+    tags: [OperatingIncomeLoss]
+
+  - id: net_income
+    label: "Net income"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Net income attributable to the parent."
+    tags: [NetIncomeLoss, ProfitLoss]
+
+  - id: pretax_income
+    label: "Pre-tax income"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Income before income taxes."
+    tags: [IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest, IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments]
+
+  - id: tax_expense
+    label: "Income tax expense"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Provision for income taxes."
+    tags: [IncomeTaxExpenseBenefit]
+
+  - id: interest_expense
+    label: "Interest expense"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Interest expense on debt."
+    tags: [InterestExpense, InterestExpenseNonoperating, InterestAndDebtExpense]
+
+  - id: rd_expense
+    label: "R&D expense"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Research and development expense."
+    tags: [ResearchAndDevelopmentExpense]
+
+  - id: sga_expense
+    label: "SG&A expense"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Selling, general and administrative expense."
+    tags: [SellingGeneralAndAdministrativeExpense]
+
+  - id: eps_diluted
+    label: "Diluted EPS"
+    statement: income
+    period: duration
+    unit: USD-per-shares
+    definition: "Diluted earnings per share."
+    tags: [EarningsPerShareDiluted]
+
+  - id: shares_diluted
+    label: "Diluted shares"
+    statement: share
+    period: duration
+    unit: shares
+    definition: "Weighted average diluted shares outstanding."
+    tags: [WeightedAverageNumberOfDilutedSharesOutstanding, WeightedAverageNumberOfSharesOutstandingBasic]
+
+  - id: assets
+    label: "Total assets"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Total assets."
+    tags: [Assets]
+
+  - id: liabilities
+    label: "Total liabilities"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Total liabilities."
+    tags: [Liabilities]
+
+  - id: equity
+    label: "Stockholders' equity"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Equity attributable to the parent."
+    tags: [StockholdersEquity, StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest]
+
+  - id: cash
+    label: "Cash and equivalents"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Cash and cash equivalents at carrying value."
+    tags: [CashAndCashEquivalentsAtCarryingValue, CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents]
+
+  - id: inventory
+    label: "Inventory"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Net inventory."
+    tags: [InventoryNet, InventoryFinishedGoodsNetOfReserves]
+
+  - id: receivables
+    label: "Accounts receivable"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Net current accounts receivable."
+    tags: [AccountsReceivableNetCurrent, AccountsReceivableNet]
+
+  - id: long_term_debt
+    label: "Long-term debt"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Long-term debt, noncurrent portion."
+    tags: [LongTermDebtNoncurrent, LongTermDebt]
+
+  - id: total_debt
+    label: "Total debt"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Short- and long-term debt."
+    tags: [LongAndShortTermDebtTotal, DebtInstrumentCarryingAmount]
+
+  - id: goodwill
+    label: "Goodwill"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Goodwill balance."
+    tags: [Goodwill]
+
+  - id: shares_outstanding
+    label: "Shares outstanding"
+    statement: share
+    period: instant
+    unit: shares
+    definition: "Shares outstanding at period end."
+    tags: [EntityCommonStockSharesOutstanding, CommonStockSharesOutstanding]
+
+  - id: cfo
+    label: "Operating cash flow"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Net cash provided by operating activities."
+    tags: [NetCashProvidedByUsedInOperatingActivities, NetCashProvidedByUsedInOperatingActivitiesContinuingOperations]
+
+  - id: capex
+    label: "Capital expenditure"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Payments to acquire property, plant and equipment."
+    tags: [PaymentsToAcquirePropertyPlantAndEquipment, PaymentsToAcquireProductiveAssets, PaymentsForCapitalImprovements]
+
+  - id: cfi
+    label: "Investing cash flow"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Net cash from investing activities."
+    tags: [NetCashProvidedByUsedInInvestingActivities]
+
+  - id: cff
+    label: "Financing cash flow"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Net cash from financing activities."
+    tags: [NetCashProvidedByUsedInFinancingActivities]
+
+  - id: depreciation_amortization
+    label: "Depreciation and amortisation"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Depreciation, depletion and amortisation."
+    tags: [DepreciationDepletionAndAmortization, DepreciationAmortizationAndAccretionNet, Depreciation]
+
+  - id: buybacks
+    label: "Share repurchases"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Payments to repurchase common stock."
+    tags: [PaymentsForRepurchaseOfCommonStock]
+
+  - id: dividends_paid
+    label: "Dividends paid"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Cash dividends paid."
+    tags: [PaymentsOfDividendsCommonStock, PaymentsOfDividends]
+
+  - id: sbc
+    label: "Stock-based compensation"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Share-based compensation expense."
+    tags: [ShareBasedCompensation, AllocatedShareBasedCompensationExpense]
