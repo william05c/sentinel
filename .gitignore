@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Data: the warehouse and raw documents are rebuilt from sources, never committed.
+# Ignore by contents, not by directory: a "data/" rule would make the negation below
+# unreachable, and git would then drop the placeholder silently.
+data/*
+!data/.gitkeep
+*.duckdb
+*.duckdb.wal
+reports/out/
+*.zip
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Generated
+*.log
+*.tmp
