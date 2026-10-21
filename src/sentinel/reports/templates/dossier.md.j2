@@ -1,0 +1,67 @@
+# {{ company.name }} ({{ ticker }}) — Company Dossier
+
+**As of:** {{ as_of }} · **Snapshot:** {{ snapshot }} · **Generated:** {{ generated_at }}
+
+**CIK:** {{ cik }} · **SIC:** {{ company.sic }} {{ company.sic_description or "" }} · **Fiscal year end:** {{ company.fiscal_year_end or "n/a" }} · **Filings on record:** {{ b("filings_total") }}
+
+## Summary
+
+- Latest fiscal year revenue: {{ b("revenue_" ~ fiscal_years[0]) }} (FY{{ fiscal_years[0] }}).
+- Net margin in FY{{ fiscal_years[0] }}: {{ b("net_margin_" ~ fiscal_years[0]) }}, on an operating margin of {{ b("operating_margin_" ~ fiscal_years[0]) }}.
+- Operating cash flow of {{ b("cfo_" ~ fiscal_years[0]) }} less capital expenditure of {{ b("capex_" ~ fiscal_years[0]) }} leaves free cash flow of {{ b("fcf_" ~ fiscal_years[0]) }}.
+{% if has_cagr %}
+- Revenue grew at {{ b("revenue_cagr") }} a year across the {{ fiscal_years|length }} fiscal years shown.
+{% endif %}
+- Total assets {{ b("assets_" ~ fiscal_years[0]) }} against stockholders' equity of {{ b("equity_" ~ fiscal_years[0]) }}.
+
+## Key financials
+
+All values are as reported to the SEC, selected by the metric dictionary in config/metrics.yaml. A cell reading n/a means no tag in the chain reported that metric for that year; it does not mean zero.
+
+{{ header_md }}
+{{ sep_md }}
+{{ rows_money_md | join("
+") }}
+
+## Margins and cash conversion
+
+{{ header_md }}
+{{ sep_md }}
+{{ rows_ratio_md | join("
+") }}
+
+## Filing profile
+
+| Form | Filings |
+|---|---:|
+{{ rows_forms_md | join("
+") }}
+
+## What this report does and does not say
+
+- These are reported values, not forecasts. Nothing here predicts a price.
+- Fiscal years are the company's own, not calendar years. A year appears only when an annual income statement exists for it, so a partly-elapsed year is absent rather than empty.
+- Where a metric is missing, the pipeline did not find a tag in the configured chain. That is a gap in the dictionary or in the filing, and it is reported as a gap rather than filled with a guess.
+
+## Limitations
+
+- Ingestion is limited to the tags in config/metrics.yaml. Facts outside the dictionary are not stored, so this dossier cannot show a metric the dictionary does not define.
+- Filing metadata comes from the first submissions payload only, which the SEC caps at a thousand recent filings; older filings require following the paginated files list.
+- One company, selected by CIK. Cross-company comparison requires the universe backfill.
+- The snapshot hash identifies the exact warehouse state; a later ingest will change it.
+
+## Provenance
+
+Sources fetched for this company:
+
+{% for s in sources %}- {{ s.source }} — {{ s.url }} (retrieved {{ s.retrieved_at }})
+{% endfor %}
+Accessions contributing facts: {{ b("accessions_count") }}.
+
+{% for a in accessions[:25] %}- {{ a }}
+{% endfor %}
+{% if accessions|length > 25 %}- The list above is truncated; the bindings file records every contributing accession.
+{% endif %}
+## Disclaimer
+
+Research output generated from public data. Not investment advice. Numbers are as of the stated retrieval date and may since have been restated.

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ company.name }} ({{ ticker }}) — Dossier</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 40px 24px 80px; font: 16px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: #16202b; background: #f6f7f9; }
+  .wrap { max-width: 980px; margin: 0 auto; background: #fff; border: 1px solid #e3e6ea; border-radius: 10px; overflow: hidden; }
+  header { padding: 28px 32px; border-bottom: 1px solid #e3e6ea; background: #0f1720; color: #eef2f6; }
+  header h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.01em; }
+  header .sub { font-size: 13px; color: #9fb0c0; }
+  header .sub b { color: #d8e2ec; font-weight: 600; }
+  section { padding: 26px 32px; border-bottom: 1px solid #eef0f3; }
+  section:last-of-type { border-bottom: 0; }
+  h2 { margin: 0 0 14px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.08em; color: #5a6b7d; }
+  ul { margin: 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid #eef0f3; text-align: right; }
+  th:first-child, td:first-child { text-align: left; font-weight: 500; }
+  thead th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7c8f; border-bottom: 1px solid #dfe3e8; }
+  tbody tr:hover { background: #fafbfc; }
+  .muted { color: #6b7c8f; font-size: 13px; }
+  .disc { background: #fbfaf6; border-left: 3px solid #d9c58f; padding: 14px 16px; font-size: 13px; color: #5b5342; }
+  code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; color: #33475b; }
+  .prov { font-size: 12px; color: #6b7c8f; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>{{ company.name }} <span style="color:#8ea3b8;font-weight:400">({{ ticker }})</span></h1>
+    <div class="sub">
+      <b>CIK</b> {{ cik }} &nbsp;·&nbsp; <b>SIC</b> {{ company.sic }} &nbsp;·&nbsp;
+      <b>FY end</b> {{ company.fiscal_year_end or "n/a" }} &nbsp;·&nbsp;
+      <b>As of</b> {{ as_of }} &nbsp;·&nbsp; <b>Snapshot</b> <code>{{ snapshot }}</code>
+    </div>
+  </header>
+
+  <section>
+    <h2>Summary</h2>
+    <ul>
+      <li>Latest fiscal year revenue: <b>{{ b("revenue_" ~ fiscal_years[0]) }}</b> (FY{{ fiscal_years[0] }}).</li>
+      <li>Net margin {{ b("net_margin_" ~ fiscal_years[0]) }} on operating margin {{ b("operating_margin_" ~ fiscal_years[0]) }}.</li>
+      <li>Free cash flow {{ b("fcf_" ~ fiscal_years[0]) }} (operating cash flow {{ b("cfo_" ~ fiscal_years[0]) }} less capex {{ b("capex_" ~ fiscal_years[0]) }}).</li>
+      {% if has_cagr %}<li>Revenue growth: {{ b("revenue_cagr") }} a year over the period shown.</li>{% endif %}
+      <li>Total assets {{ b("assets_" ~ fiscal_years[0]) }}; stockholders' equity {{ b("equity_" ~ fiscal_years[0]) }}.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Key financials</h2>
+    <table>
+      <thead><tr><th>Metric</th>{% for y in fiscal_years %}<th>FY{{ y }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for label, metric in money_rows %}<tr><td>{{ label }}</td>{% for y in fiscal_years %}<td>{{ b(metric ~ "_" ~ y) }}</td>{% endfor %}</tr>
+      {% endfor %}
+      {% for label, metric in balance_rows %}<tr><td>{{ label }}</td>{% for y in fiscal_years %}<td>{{ b(metric ~ "_" ~ y) }}</td>{% endfor %}</tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted">Reported values, selected by the metric dictionary. A blank cell means no tag in the chain reported that metric; it does not mean zero.</p>
+  </section>
+
+  <section>
+    <h2>Margins and cash conversion</h2>
+    <table>
+      <thead><tr><th>Metric</th>{% for y in fiscal_years %}<th>FY{{ y }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for label, metric, fmt in ratio_rows %}<tr><td>{{ label }}</td>{% for y in fiscal_years %}<td>{{ b(metric ~ "_" ~ y) }}</td>{% endfor %}</tr>
+      {% endfor %}
+      <tr><td>Free cash flow</td>{% for y in fiscal_years %}<td>{{ b("fcf_" ~ y) }}</td>{% endfor %}</tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Filing profile</h2>
+    <table>
+      <thead><tr><th>Form</th><th>Filings</th></tr></thead>
+      <tbody>{% for row in form_rows %}<tr><td>{{ row.form }}</td><td>{{ b(row.key) }}</td></tr>{% endfor %}</tbody>
+    </table>
+    <p class="muted">Total filings on record: {{ b("filings_total") }}. Accessions contributing facts: {{ b("accessions_count") }}.</p>
+  </section>
+
+  <section>
+    <h2>Provenance</h2>
+    <p class="prov">
+      {% for s in sources %}{{ s.source }} — {{ s.url }}<br>retrieved {{ s.retrieved_at }}<br>{% endfor %}
+    </p>
+  </section>
+
+  <section>
+    <div class="disc">
+      Research output generated from public data. Not investment advice. Numbers are as of the stated retrieval date
+      and may since have been restated.
+    </div>
+  </section>
+</div>
+</body>
+</html>
