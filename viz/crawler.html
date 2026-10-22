@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SENTINEL — crawler view</title>
+<style>
+  :root {
+    --bg:#0a0e13; --panel:#0f1620; --line:#1b2733; --ink:#93a7bd; --dim:#5b6b7d;
+    --money:#4ade80; --pct:#60a5fa; --year:#a78bfa; --term:#f59e0b; --accent:#e2e8f0;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font:13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow:hidden; }
+  .app { display:grid; grid-template-columns:1fr 400px; height:100vh; }
+  header { position:fixed; top:0; left:0; right:400px; padding:14px 22px; display:flex;
+    justify-content:space-between; align-items:baseline; border-bottom:1px solid var(--line);
+    background:linear-gradient(#0a0e13,#0a0e13f2); z-index:5; }
+  header h1 { margin:0; font-size:13px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  header .meta { color:var(--dim); font-size:11px; }
+  main { position:relative; padding:64px 22px 54px; overflow:hidden; }
+  .doc { position:relative; height:100%; overflow:hidden; }
+  .line { padding:5px 10px 5px 46px; border-left:2px solid transparent; color:#7d8fa3;
+    transition:color .25s, background .25s, border-color .25s; }
+  .line.seen { color:var(--dim); }
+  .line.active { color:var(--accent); background:#111c28; border-left-color:#2dd4bf; }
+  .line.active::before { content:"▍"; position:absolute; left:26px; color:#2dd4bf; }
+  .ln { position:absolute; left:8px; color:#2c3a49; }
+  .k-money { color:#052e16; background:var(--money); border-radius:3px; padding:0 3px; }
+  .k-pct   { color:#04203f; background:var(--pct);   border-radius:3px; padding:0 3px; }
+  .k-year  { color:#1e1b4b; background:var(--year);  border-radius:3px; padding:0 3px; }
+  .k-term  { color:#2b1a04; background:var(--term);  border-radius:3px; padding:0 3px; }
+  svg.spider { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:4; overflow:visible; }
+  aside { border-left:1px solid var(--line); background:var(--panel); display:flex; flex-direction:column; }
+  aside h2 { margin:0; padding:14px 18px 10px; font-size:11px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--dim); border-bottom:1px solid var(--line); }
+  .legend { display:flex; gap:14px; padding:10px 18px; border-bottom:1px solid var(--line); font-size:10px; color:var(--dim); }
+  .legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; }
+  .items { overflow:hidden; flex:1; }
+  .item { display:flex; gap:10px; padding:7px 18px; border-bottom:1px solid #131c26; animation:pop .35s ease-out; }
+  .item .v { min-width:86px; font-weight:600; }
+  .item .l { color:var(--dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  @keyframes pop { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+  footer { position:fixed; bottom:0; left:0; right:400px; height:38px; display:flex; gap:26px;
+    align-items:center; padding:0 22px; border-top:1px solid var(--line); background:#0a0e13ee; color:var(--dim); font-size:11px; }
+  footer b { color:var(--accent); font-weight:600; }
+  .bar { flex:1; height:4px; background:#16202c; border-radius:2px; overflow:hidden; }
+  .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,#2dd4bf,#4ade80); transition:width .3s; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>SENTINEL · crawler view</h1>
+    <div class="meta" id="meta"></div>
+  </header>
+  <main>
+    <div class="doc" id="doc">
+      <svg class="spider" id="spider" width="100%" height="100%"></svg>
+    </div>
+  </main>
+  <aside>
+    <h2>Collected</h2>
+    <div class="legend">
+      <span><i style="background:var(--money)"></i>money</span>
+      <span><i style="background:var(--pct)"></i>pct</span>
+      <span><i style="background:var(--year)"></i>year</span>
+      <span><i style="background:var(--term)"></i>term</span>
+    </div>
+    <div class="items" id="items"></div>
+  </aside>
+</div>
+<footer>
+  <span>line <b id="f-line">0</b>/<b id="f-total">0</b></span>
+  <span>spans <b id="f-spans">0</b></span>
+  <span>legs attached <b id="f-legs">0</b></span>
+  <div class="bar"><i id="f-bar"></i></div>
+  <span>extracted <b id="f-items">0</b></span>
+</footer>
+
+<script>
+const DATA = {
+ "source": {
+  "company": "Apple Inc.",
+  "form": "10-K",
+  "filed": "2025-10-31",
+  "accession": "0000320193-25-000079",
+  "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"
+ },
+ "lines": [
+  "During 2025, the Company\u2019s net sales through its direct and indirect distribution channels accounted for 40% and 60%, respectively, of total net sales.",
+  "As of September 27, 2025, the Company had approximately 166,000 full-time equivalent employees.",
+  "The Company\u2019s Annual Reports on Form 10-K, Quarterly Reports on Form 10-Q, Current Reports on Form 8-K, and amendments to reports filed pursuant to Sections 13(a) and 15(d) of the Securities Exchange Act of 1934, as amended (\u201cExchange Act\u201d), are filed with the U.S.",
+  "The information contained on the websites referenced in this Form 10-K is not incorporated by reference into this filing.",
+  "This section should be read in conjunction with Part II, Item 7, \u201cManagement\u2019s Discussion and Analysis of Financial Condition and Results of Operations\u201d and the consolidated financial statements and accompanying notes in Part II, Item 8, \u201cFinancial Statements and Supplementary Data\u201d of this Form 10-K.",
+  "Beginning in the second quarter of 2025, new tariffs were announced on imports to the U.S.",
+  "Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, as amended, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors.",
+  "Manufacturing purchase obligations cover the Company\u2019s forecasted component and manufacturing requirements, typically for periods up to 150 days.",
+  "As of September 27, 2025, the Company\u2019s vendor non-trade receivables were concentrated among a few individual vendors located primarily in Asia.",
+  "The Company\u2019s Head of Corporate Information Security has extensive knowledge and skills gained from over 25 years of experience in the cybersecurity industry, including serving in leadership positions at other large technology companies and leading the Company\u2019s Information Security team since 2016.",
+  "As of September 27, 2025, the Company owned or leased facilities and land for corporate functions, R&D, data centers, retail and other purposes at locations throughout the U.S.",
+  "On March 25, 2024, the Commission announced that it had opened a formal noncompliance investigation against the Company under Article 5(4) of the EU DMA (\u201cArticle 5(4) Investigation\u201d).",
+  "The Article 5(4) Investigation relates to how developers may communicate and promote offers to end users for apps distributed through the App Store, as well as how developers may conclude contracts with those end users.",
+  "On June 24, 2024, the Commission announced that it had opened an additional formal investigation against the Company regarding whether the Company\u2019s new contractual requirements for third-party app developers and app marketplaces may violate the DMA (\u201cArticle 6(4) Investigation\u201d).",
+  "On April 23, 2025, the Commission fined the Company \u20ac500 million in the Article 5(4) Investigation and issued a cease and desist order requiring the Company to remove technical and commercial restrictions that prevent developers from steering users to alternative distribution channels outside the App Store.",
+  "Also on April 23, 2025, the Commission issued preliminary findings in the Article 6(4) Investigation.",
+  "If the Commission makes a final determination in the Article 6(4) Investigation that there has been a violation, it can issue a cease and desist order and may impose fines up to 10% of the Company\u2019s annual worldwide net sales.",
+  "On March 21, 2024, the DOJ and a number of state and district attorneys general filed a civil antitrust lawsuit in the U.S.",
+  "On January 16, 2024, the Company implemented a plan to comply with the 2021 Injunction and filed a statement of compliance with the California District Court.",
+  "On September 30, 2024, the Company filed a motion with the California District Court to narrow or vacate the 2021 Injunction.",
+  "The California District Court also denied the Company\u2019s motion to narrow or vacate the 2021 Injunction and referred the Company to the U.S.",
+  "Although the Company\u2019s request to stay the decision pending appeal was denied, the Ninth Circuit Court has agreed to consider the Company\u2019s appeal on an expedited basis, with oral arguments heard in October 2025.",
+  "The Company settled certain matters during the fourth quarter of 2025 that did not individually or in the aggregate have a material impact on the Company\u2019s financial condition or operating results.",
+  "Share repurchase activity during the three months ended September 27, 2025, was as follows (in millions, except number of shares, which are reflected in thousands, and per-share amounts):",
+  "(1)On May 2, 2024, the Company announced a program to repurchase up to $110 billion of the Company\u2019s common stock.",
+  "During the fourth quarter of 2025, the Company utilized the final $19.8 billion under the May 2024 program.",
+  "On May 1, 2025, the Company announced an additional program to repurchase up to $100 billion of the Company\u2019s common stock.",
+  "As of September 27, 2025, $221 million of the May 2025 program had been utilized.",
+  "Under the programs, shares may be repurchased in privately negotiated or open market transactions, including under plans complying with Rule 10b5-1 under the Exchange Act.",
+  "The following graph shows a comparison of five-year cumulative total shareholder return, calculated on a dividend-reinvested basis, for the Company, the S&P 500 Index and the Dow Jones U.S.",
+  "The graph assumes $100 was invested in each of the Company\u2019s common stock, the S&P 500 Index and the Dow Jones U.S.",
+  "Technology Total Stock Market Index as of the market close on September 25, 2020.",
+  "September 2020September 2021September 2022September 2023September 2024September 2025Apple Inc.$100 $132 $136 $155 $208 $234 S&P 500 Index$100 $137 $115 $136 $185 $217 Dow Jones U.S.",
+  "The following discussion should be read in conjunction with the consolidated financial statements and accompanying notes included in Part II, Item 8 of this Form 10-K."
+ ],
+ "spans": [
+  {
+   "line": 0,
+   "start": 105,
+   "end": 108,
+   "kind": "pct",
+   "text": "40%"
+  },
+  {
+   "line": 0,
+   "start": 113,
+   "end": 116,
+   "kind": "pct",
+   "text": "60%"
+  },
+  {
+   "line": 0,
+   "start": 7,
+   "end": 11,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 1,
+   "start": 20,
+   "end": 24,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 2,
+   "start": 207,
+   "end": 211,
+   "kind": "year",
+   "text": "1934"
+  },
+  {
+   "line": 5,
+   "start": 35,
+   "end": 39,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 5,
+   "start": 45,
+   "end": 51,
+   "kind": "term",
+   "text": "tariff"
+  },
+  {
+   "line": 6,
+   "start": 102,
+   "end": 106,
+   "kind": "year",
+   "text": "1962"
+  },
+  {
+   "line": 8,
+   "start": 20,
+   "end": 24,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 9,
+   "start": 295,
+   "end": 299,
+   "kind": "year",
+   "text": "2016"
+  },
+  {
+   "line": 10,
+   "start": 20,
+   "end": 24,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 11,
+   "start": 13,
+   "end": 17,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 13,
+   "start": 12,
+   "end": 16,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 14,
+   "start": 13,
+   "end": 17,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 15,
+   "start": 18,
+   "end": 22,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 16,
+   "start": 178,
+   "end": 181,
+   "kind": "pct",
+   "text": "10%"
+  },
+  {
+   "line": 17,
+   "start": 13,
+   "end": 17,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 18,
+   "start": 15,
+   "end": 19,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 18,
+   "start": 71,
+   "end": 75,
+   "kind": "year",
+   "text": "2021"
+  },
+  {
+   "line": 19,
+   "start": 17,
+   "end": 21,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 19,
+   "start": 109,
+   "end": 113,
+   "kind": "year",
+   "text": "2021"
+  },
+  {
+   "line": 20,
+   "start": 87,
+   "end": 91,
+   "kind": "year",
+   "text": "2021"
+  },
+  {
+   "line": 21,
+   "start": 207,
+   "end": 211,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 22,
+   "start": 65,
+   "end": 69,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 23,
+   "start": 70,
+   "end": 74,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 24,
+   "start": 71,
+   "end": 83,
+   "kind": "money",
+   "text": "$110 billion"
+  },
+  {
+   "line": 24,
+   "start": 13,
+   "end": 17,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 25,
+   "start": 66,
+   "end": 79,
+   "kind": "money",
+   "text": "$19.8 billion"
+  },
+  {
+   "line": 25,
+   "start": 29,
+   "end": 33,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 25,
+   "start": 94,
+   "end": 98,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 26,
+   "start": 80,
+   "end": 92,
+   "kind": "money",
+   "text": "$100 billion"
+  },
+  {
+   "line": 26,
+   "start": 10,
+   "end": 14,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 27,
+   "start": 26,
+   "end": 38,
+   "kind": "money",
+   "text": "$221 million"
+  },
+  {
+   "line": 27,
+   "start": 20,
+   "end": 24,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 27,
+   "start": 50,
+   "end": 54,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 30,
+   "start": 18,
+   "end": 23,
+   "kind": "money",
+   "text": "$100 "
+  },
+  {
+   "line": 31,
+   "start": 76,
+   "end": 80,
+   "kind": "year",
+   "text": "2020"
+  },
+  {
+   "line": 32,
+   "start": 94,
+   "end": 99,
+   "kind": "money",
+   "text": "$100 "
+  },
+  {
+   "line": 32,
+   "start": 99,
+   "end": 104,
+   "kind": "money",
+   "text": "$132 "
+  },
+  {
+   "line": 32,
+   "start": 104,
+   "end": 109,
+   "kind": "money",
+   "text": "$136 "
+  },
+  {
+   "line": 32,
+   "start": 109,
+   "end": 114,
+   "kind": "money",
+   "text": "$155 "
+  },
+  {
+   "line": 32,
+   "start": 114,
+   "end": 119,
+   "kind": "money",
+   "text": "$208 "
+  },
+  {
+   "line": 32,
+   "start": 119,
+   "end": 124,
+   "kind": "money",
+   "text": "$234 "
+  },
+  {
+   "line": 32,
+   "start": 137,
+   "end": 142,
+   "kind": "money",
+   "text": "$100 "
+  },
+  {
+   "line": 32,
+   "start": 142,
+   "end": 147,
+   "kind": "money",
+   "text": "$137 "
+  },
+  {
+   "line": 32,
+   "start": 147,
+   "end": 152,
+   "kind": "money",
+   "text": "$115 "
+  },
+  {
+   "line": 32,
+   "start": 152,
+   "end": 157,
+   "kind": "money",
+   "text": "$136 "
+  },
+  {
+   "line": 32,
+   "start": 157,
+   "end": 162,
+   "kind": "money",
+   "text": "$185 "
+  },
+  {
+   "line": 32,
+   "start": 162,
+   "end": 167,
+   "kind": "money",
+   "text": "$217 "
+  }
+ ]
+};
+
+const doc = document.getElementById('doc');
+const svg = document.getElementById('spider');
+const items = document.getElementById('items');
+const NS = 'http://www.w3.org/2000/svg';
+const KIND_COLOR = { money:'#4ade80', pct:'#60a5fa', year:'#a78bfa', term:'#f59e0b' };
+
+document.getElementById('meta').textContent =
+  DATA.source.company + ' · ' + DATA.source.form + ' · filed ' + DATA.source.filed +
+  ' · accession ' + DATA.source.accession;
+document.getElementById('f-total').textContent = DATA.lines.length;
+
+// ---- render document with real detection spans -------------------------
+const spansByLine = {};
+DATA.spans.forEach((s, i) => { (spansByLine[s.line] ||= []).push({ ...s, id:i }); });
+
+DATA.lines.forEach((text, i) => {
+  const row = document.createElement('div');
+  row.className = 'line'; row.dataset.i = i; row.id = 'line-' + i;
+  const num = document.createElement('span');
+  num.className = 'ln'; num.textContent = String(i + 1).padStart(2, '0');
+  row.appendChild(num);
+  let cursor = 0;
+  const spans = (spansByLine[i] || []).slice().sort((a, b) => a.start - b.start);
+  spans.forEach(s => {
+    if (s.start > cursor) row.appendChild(document.createTextNode(text.slice(cursor, s.start)));
+    const mark = document.createElement('span');
+    mark.className = 'k-' + s.kind; mark.textContent = text.slice(s.start, s.end);
+    mark.dataset.span = String(s.id);
+    row.appendChild(mark);
+    cursor = s.end;
+  });
+  row.appendChild(document.createTextNode(text.slice(cursor)));
+  doc.appendChild(row);
+});
+
+// ---- spider -------------------------------------------------------------
+const body = document.createElementNS(NS, 'g');
+const legs = document.createElementNS(NS, 'g');
+const feet = document.createElementNS(NS, 'g');
+const packets = document.createElementNS(NS, 'g');
+svg.append(legs, feet, packets, body);
+
+const abdomen = document.createElementNS(NS, 'ellipse');
+abdomen.setAttribute('rx', 15); abdomen.setAttribute('ry', 19);
+abdomen.setAttribute('fill', '#111a24'); abdomen.setAttribute('stroke', '#2dd4bf');
+abdomen.setAttribute('stroke-width', '1.6');
+const head = document.createElementNS(NS, 'circle');
+head.setAttribute('r', 9); head.setAttribute('fill', '#16232f');
+head.setAttribute('stroke', '#2dd4bf'); head.setAttribute('stroke-width', '1.4');
+const eyes = [-3, 3].map(dx => {
+  const e = document.createElementNS(NS, 'circle');
+  e.setAttribute('r', 1.7); e.setAttribute('cx', dx); e.setAttribute('cy', -2);
+  e.setAttribute('fill', '#7ff0dc'); return e;
+});
+body.append(abdomen, head, ...eyes);
+
+// 8 legs, four a side: knee + foot
+const legPaths = [];
+for (let i = 0; i < 8; i++) {
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('fill', 'none'); p.setAttribute('stroke', '#2dd4bf');
+  p.setAttribute('stroke-width', '1.6'); p.setAttribute('opacity', '0');
+  legs.appendChild(p); legPaths.push(p);
+}
+
+function placeBody(x, y) {
+  body.setAttribute('transform', 'translate(' + x + ',' + y + ')');
+  head.setAttribute('cy', -26);
+}
+
+function legPath(bx, by, tx, ty, side, idx) {
+  const dx = tx - bx, dy = ty - by;
+  const spread = 26 + idx * 9;
+  const kx = bx + dx * 0.45 + side * spread;
+  const ky = by + dy * 0.35 - 18 - idx * 4;
+  return 'M' + bx + ',' + (by - 8) + ' Q' + kx + ',' + ky + ' ' + tx + ',' + ty;
+}
+
+function drawLegs(anchors) {
+  feet.replaceChildren();
+  anchors.forEach(a => {
+    const dot = document.createElementNS(NS, 'circle');
+    dot.setAttribute('cx', a.x); dot.setAttribute('cy', a.y); dot.setAttribute('r', 3);
+    dot.setAttribute('fill', KIND_COLOR[a.span.kind]);
+    dot.setAttribute('stroke', '#0a0e13'); dot.setAttribute('stroke-width', '1');
+    feet.appendChild(dot);
+    const halo = document.createElementNS(NS, 'circle');
+    halo.setAttribute('cx', a.x); halo.setAttribute('cy', a.y); halo.setAttribute('r', 7);
+    halo.setAttribute('fill', 'none');
+    halo.setAttribute('stroke', KIND_COLOR[a.span.kind]);
+    halo.setAttribute('stroke-width', '1'); halo.setAttribute('opacity', '0.35');
+    feet.appendChild(halo);
+  });
+  const t = body.getAttribute('transform').slice(10, -1).split(',').map(Number);
+  const bx = t[0], by = t[1];
+  legPaths.forEach((p, i) => {
+    const a = anchors[i];
+    if (!a) { p.setAttribute('opacity', '0'); return; }
+    const side = i < 4 ? -1 : 1;
+    const idx = i < 4 ? i : i - 4;
+    p.setAttribute('d', legPath(bx, by, a.x, a.y, side, idx));
+    p.setAttribute('opacity', a.strength.toFixed(2));
+  });
+}
+
+function emitPacket(anchor, color) {
+  const t = body.getAttribute('transform').slice(10, -1).split(',').map(Number);
+  const c = document.createElementNS(NS, 'circle');
+  c.setAttribute('r', 3.2); c.setAttribute('fill', color); c.setAttribute('opacity', '0.95');
+  c.setAttribute('cx', anchor.x); c.setAttribute('cy', anchor.y);
+  packets.appendChild(c);
+  const start = performance.now();
+  const bx = t[0], by = t[1] - 8;
+  (function step(now) {
+    const k = Math.min(1, (now - start) / 620);
+    const ease = k < .5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2)/2;
+    c.setAttribute('cx', anchor.x + (bx - anchor.x) * ease);
+    c.setAttribute('cy', anchor.y + (by - anchor.y) * ease);
+    c.setAttribute('opacity', String(0.95 * (1 - ease * 0.2)));
+    if (k < 1) requestAnimationFrame(step); else c.remove();
+  })(start);
+}
+
+// ---- crawl --------------------------------------------------------------
+let lineIndex = -1, collected = 0, attached = 0;
+const seen = new Set();
+
+function spanAnchors(lineEl) {
+  const host = doc.getBoundingClientRect();
+  return [...lineEl.querySelectorAll('[data-span]')].map(el => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left - host.left + r.width * 0.5, y: r.top - host.top + r.height * 0.5,
+             el, span: DATA.spans[Number(el.dataset.span)] };
+  });
+}
+
+function collect(anchor) {
+  const s = anchor.span;
+  if (seen.has(s.line + ':' + s.start)) return;
+  seen.add(s.line + ':' + s.start);
+  const row = document.createElement('div');
+  row.className = 'item';
+  row.innerHTML = '<span class="v" style="color:' + KIND_COLOR[s.kind] + '">' +
+    s.text.replace(/</g,'&lt;') + '</span><span class="l">' + s.kind +
+    ' · line ' + (s.line + 1) + '</span>';
+  items.prepend(row);
+  while (items.children.length > 40) items.lastChild.remove();
+  collected += 1;
+  document.getElementById('f-items').textContent = collected;
+  document.getElementById('f-spans').textContent = seen.size;
+}
+
+function step() {
+  lineIndex += 1;
+  if (lineIndex >= DATA.lines.length) return;
+  const prev = doc.querySelector('.line.active');
+  if (prev) { prev.classList.remove('active'); prev.classList.add('seen'); }
+
+  const lineEl = document.getElementById('line-' + lineIndex);
+  lineEl.classList.add('active');
+
+  const anchors = spanAnchors(lineEl);
+  const host = doc.getBoundingClientRect();
+  const r = lineEl.getBoundingClientRect();
+  placeBody(host.width - 34, r.top - host.top + r.height / 2);
+
+  attached = Math.min(8, anchors.length);
+  document.getElementById('f-legs').textContent = attached;
+  document.getElementById('f-line').textContent = lineIndex + 1;
+  document.getElementById('f-bar').style.width =
+    ((lineIndex + 1) / DATA.lines.length * 100).toFixed(1) + '%';
+
+  const driven = anchors.slice(0, 8).map((a, i) => ({ ...a, strength: 0.35 + (i / 8) * 0.6 }));
+  drawLegs(driven);
+
+  anchors.slice(0, 4).forEach((a, i) => {
+    setTimeout(() => { emitPacket(a, KIND_COLOR[a.span.kind]); collect(a); }, 120 + i * 110);
+  });
+
+  setTimeout(step, 2600);
+}
+
+// first frame is already informative, so a screenshot taken at load shows the idea
+window.addEventListener('load', () => {
+  lineIndex = 0;
+  const lineEl = document.getElementById('line-0');
+  lineEl.classList.add('active');
+  const anchors = spanAnchors(lineEl);
+  const host = doc.getBoundingClientRect();
+  const r = lineEl.getBoundingClientRect();
+  placeBody(host.width - 34, r.top - host.top + r.height / 2);
+  const driven = anchors.slice(0, 8).map((a, i) => ({ ...a, strength: 0.55 + (i / 8) * 0.4 }));
+  drawLegs(driven);
+  anchors.slice(0, 5).forEach(collect);
+  document.getElementById('f-line').textContent = 1;
+  document.getElementById('f-legs').textContent = Math.min(8, anchors.length);
+  document.getElementById('f-bar').style.width = ((1) / DATA.lines.length * 100).toFixed(1) + '%';
+  setTimeout(step, 2600);
+});
+</script>
+</body>
+</html>

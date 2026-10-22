@@ -1,0 +1,390 @@
+{
+ "source": {
+  "company": "Apple Inc.",
+  "form": "10-K",
+  "filed": "2025-10-31",
+  "accession": "0000320193-25-000079",
+  "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"
+ },
+ "lines": [
+  "During 2025, the Company\u2019s net sales through its direct and indirect distribution channels accounted for 40% and 60%, respectively, of total net sales.",
+  "As of September 27, 2025, the Company had approximately 166,000 full-time equivalent employees.",
+  "The Company\u2019s Annual Reports on Form 10-K, Quarterly Reports on Form 10-Q, Current Reports on Form 8-K, and amendments to reports filed pursuant to Sections 13(a) and 15(d) of the Securities Exchange Act of 1934, as amended (\u201cExchange Act\u201d), are filed with the U.S.",
+  "The information contained on the websites referenced in this Form 10-K is not incorporated by reference into this filing.",
+  "This section should be read in conjunction with Part II, Item 7, \u201cManagement\u2019s Discussion and Analysis of Financial Condition and Results of Operations\u201d and the consolidated financial statements and accompanying notes in Part II, Item 8, \u201cFinancial Statements and Supplementary Data\u201d of this Form 10-K.",
+  "Beginning in the second quarter of 2025, new tariffs were announced on imports to the U.S.",
+  "Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, as amended, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors.",
+  "Manufacturing purchase obligations cover the Company\u2019s forecasted component and manufacturing requirements, typically for periods up to 150 days.",
+  "As of September 27, 2025, the Company\u2019s vendor non-trade receivables were concentrated among a few individual vendors located primarily in Asia.",
+  "The Company\u2019s Head of Corporate Information Security has extensive knowledge and skills gained from over 25 years of experience in the cybersecurity industry, including serving in leadership positions at other large technology companies and leading the Company\u2019s Information Security team since 2016.",
+  "As of September 27, 2025, the Company owned or leased facilities and land for corporate functions, R&D, data centers, retail and other purposes at locations throughout the U.S.",
+  "On March 25, 2024, the Commission announced that it had opened a formal noncompliance investigation against the Company under Article 5(4) of the EU DMA (\u201cArticle 5(4) Investigation\u201d).",
+  "The Article 5(4) Investigation relates to how developers may communicate and promote offers to end users for apps distributed through the App Store, as well as how developers may conclude contracts with those end users.",
+  "On June 24, 2024, the Commission announced that it had opened an additional formal investigation against the Company regarding whether the Company\u2019s new contractual requirements for third-party app developers and app marketplaces may violate the DMA (\u201cArticle 6(4) Investigation\u201d).",
+  "On April 23, 2025, the Commission fined the Company \u20ac500 million in the Article 5(4) Investigation and issued a cease and desist order requiring the Company to remove technical and commercial restrictions that prevent developers from steering users to alternative distribution channels outside the App Store.",
+  "Also on April 23, 2025, the Commission issued preliminary findings in the Article 6(4) Investigation.",
+  "If the Commission makes a final determination in the Article 6(4) Investigation that there has been a violation, it can issue a cease and desist order and may impose fines up to 10% of the Company\u2019s annual worldwide net sales.",
+  "On March 21, 2024, the DOJ and a number of state and district attorneys general filed a civil antitrust lawsuit in the U.S.",
+  "On January 16, 2024, the Company implemented a plan to comply with the 2021 Injunction and filed a statement of compliance with the California District Court.",
+  "On September 30, 2024, the Company filed a motion with the California District Court to narrow or vacate the 2021 Injunction.",
+  "The California District Court also denied the Company\u2019s motion to narrow or vacate the 2021 Injunction and referred the Company to the U.S.",
+  "Although the Company\u2019s request to stay the decision pending appeal was denied, the Ninth Circuit Court has agreed to consider the Company\u2019s appeal on an expedited basis, with oral arguments heard in October 2025.",
+  "The Company settled certain matters during the fourth quarter of 2025 that did not individually or in the aggregate have a material impact on the Company\u2019s financial condition or operating results.",
+  "Share repurchase activity during the three months ended September 27, 2025, was as follows (in millions, except number of shares, which are reflected in thousands, and per-share amounts):",
+  "(1)On May 2, 2024, the Company announced a program to repurchase up to $110 billion of the Company\u2019s common stock.",
+  "During the fourth quarter of 2025, the Company utilized the final $19.8 billion under the May 2024 program.",
+  "On May 1, 2025, the Company announced an additional program to repurchase up to $100 billion of the Company\u2019s common stock.",
+  "As of September 27, 2025, $221 million of the May 2025 program had been utilized.",
+  "Under the programs, shares may be repurchased in privately negotiated or open market transactions, including under plans complying with Rule 10b5-1 under the Exchange Act.",
+  "The following graph shows a comparison of five-year cumulative total shareholder return, calculated on a dividend-reinvested basis, for the Company, the S&P 500 Index and the Dow Jones U.S.",
+  "The graph assumes $100 was invested in each of the Company\u2019s common stock, the S&P 500 Index and the Dow Jones U.S.",
+  "Technology Total Stock Market Index as of the market close on September 25, 2020.",
+  "September 2020September 2021September 2022September 2023September 2024September 2025Apple Inc.$100 $132 $136 $155 $208 $234 S&P 500 Index$100 $137 $115 $136 $185 $217 Dow Jones U.S.",
+  "The following discussion should be read in conjunction with the consolidated financial statements and accompanying notes included in Part II, Item 8 of this Form 10-K."
+ ],
+ "spans": [
+  {
+   "line": 0,
+   "start": 105,
+   "end": 108,
+   "kind": "pct",
+   "text": "40%"
+  },
+  {
+   "line": 0,
+   "start": 113,
+   "end": 116,
+   "kind": "pct",
+   "text": "60%"
+  },
+  {
+   "line": 0,
+   "start": 7,
+   "end": 11,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 1,
+   "start": 20,
+   "end": 24,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 2,
+   "start": 207,
+   "end": 211,
+   "kind": "year",
+   "text": "1934"
+  },
+  {
+   "line": 5,
+   "start": 35,
+   "end": 39,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 5,
+   "start": 45,
+   "end": 51,
+   "kind": "term",
+   "text": "tariff"
+  },
+  {
+   "line": 6,
+   "start": 102,
+   "end": 106,
+   "kind": "year",
+   "text": "1962"
+  },
+  {
+   "line": 8,
+   "start": 20,
+   "end": 24,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 9,
+   "start": 295,
+   "end": 299,
+   "kind": "year",
+   "text": "2016"
+  },
+  {
+   "line": 10,
+   "start": 20,
+   "end": 24,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 11,
+   "start": 13,
+   "end": 17,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 13,
+   "start": 12,
+   "end": 16,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 14,
+   "start": 13,
+   "end": 17,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 15,
+   "start": 18,
+   "end": 22,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 16,
+   "start": 178,
+   "end": 181,
+   "kind": "pct",
+   "text": "10%"
+  },
+  {
+   "line": 17,
+   "start": 13,
+   "end": 17,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 18,
+   "start": 15,
+   "end": 19,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 18,
+   "start": 71,
+   "end": 75,
+   "kind": "year",
+   "text": "2021"
+  },
+  {
+   "line": 19,
+   "start": 17,
+   "end": 21,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 19,
+   "start": 109,
+   "end": 113,
+   "kind": "year",
+   "text": "2021"
+  },
+  {
+   "line": 20,
+   "start": 87,
+   "end": 91,
+   "kind": "year",
+   "text": "2021"
+  },
+  {
+   "line": 21,
+   "start": 207,
+   "end": 211,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 22,
+   "start": 65,
+   "end": 69,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 23,
+   "start": 70,
+   "end": 74,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 24,
+   "start": 71,
+   "end": 83,
+   "kind": "money",
+   "text": "$110 billion"
+  },
+  {
+   "line": 24,
+   "start": 13,
+   "end": 17,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 25,
+   "start": 66,
+   "end": 79,
+   "kind": "money",
+   "text": "$19.8 billion"
+  },
+  {
+   "line": 25,
+   "start": 29,
+   "end": 33,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 25,
+   "start": 94,
+   "end": 98,
+   "kind": "year",
+   "text": "2024"
+  },
+  {
+   "line": 26,
+   "start": 80,
+   "end": 92,
+   "kind": "money",
+   "text": "$100 billion"
+  },
+  {
+   "line": 26,
+   "start": 10,
+   "end": 14,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 27,
+   "start": 26,
+   "end": 38,
+   "kind": "money",
+   "text": "$221 million"
+  },
+  {
+   "line": 27,
+   "start": 20,
+   "end": 24,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 27,
+   "start": 50,
+   "end": 54,
+   "kind": "year",
+   "text": "2025"
+  },
+  {
+   "line": 30,
+   "start": 18,
+   "end": 23,
+   "kind": "money",
+   "text": "$100 "
+  },
+  {
+   "line": 31,
+   "start": 76,
+   "end": 80,
+   "kind": "year",
+   "text": "2020"
+  },
+  {
+   "line": 32,
+   "start": 94,
+   "end": 99,
+   "kind": "money",
+   "text": "$100 "
+  },
+  {
+   "line": 32,
+   "start": 99,
+   "end": 104,
+   "kind": "money",
+   "text": "$132 "
+  },
+  {
+   "line": 32,
+   "start": 104,
+   "end": 109,
+   "kind": "money",
+   "text": "$136 "
+  },
+  {
+   "line": 32,
+   "start": 109,
+   "end": 114,
+   "kind": "money",
+   "text": "$155 "
+  },
+  {
+   "line": 32,
+   "start": 114,
+   "end": 119,
+   "kind": "money",
+   "text": "$208 "
+  },
+  {
+   "line": 32,
+   "start": 119,
+   "end": 124,
+   "kind": "money",
+   "text": "$234 "
+  },
+  {
+   "line": 32,
+   "start": 137,
+   "end": 142,
+   "kind": "money",
+   "text": "$100 "
+  },
+  {
+   "line": 32,
+   "start": 142,
+   "end": 147,
+   "kind": "money",
+   "text": "$137 "
+  },
+  {
+   "line": 32,
+   "start": 147,
+   "end": 152,
+   "kind": "money",
+   "text": "$115 "
+  },
+  {
+   "line": 32,
+   "start": 152,
+   "end": 157,
+   "kind": "money",
+   "text": "$136 "
+  },
+  {
+   "line": 32,
+   "start": 157,
+   "end": 162,
+   "kind": "money",
+   "text": "$185 "
+  },
+  {
+   "line": 32,
+   "start": 162,
+   "end": 167,
+   "kind": "money",
+   "text": "$217 "
+  }
+ ]
+}

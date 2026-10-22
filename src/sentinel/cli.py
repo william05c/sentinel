@@ -229,6 +229,33 @@ def restatements(limit: int = typer.Option(10, help="rows to show")) -> None:
 
 
 @app.command()
+def watch(days: int = typer.Option(3, help="how many days back to scan")) -> None:
+    """Scan the SEC daily index and write a digest. Quiet when nothing material happened.
+
+    Example: sentinel watch --days 3
+    """
+    from datetime import date, timedelta
+
+    from sentinel import watch as watch_mod
+
+    paths = _paths()
+    con = db.init(paths.db)
+    today = date.today()
+    span = [today - timedelta(days=i) for i in range(days)]
+    with _fetcher(paths) as fetcher:
+        stats = watch_mod.sync(con, fetcher, span)
+    # Digest the most recent day that actually produced events. Digesting "today" when
+    # the index for today is not yet published reports a quiet day that never happened.
+    latest = con.execute("SELECT MAX(digest_date) FROM watch_event").fetchone()[0]
+    d = watch_mod.digest(con, day=latest or today)
+    md, js = watch_mod.write(con, paths, d)
+    console.print(f"days fetched {stats['days_fetched']}/{stats['days_requested']} · "
+                  f"new events {stats['new_events']}")
+    console.print(watch_mod.render(d).strip()[:900])
+    console.print(f"written {md}")
+
+
+@app.command()
 def peers(ticker: str = typer.Option(..., help="e.g. --ticker AAPL"), k: int = typer.Option(10)) -> None:
     """Nearest companies by fingerprint similarity.
 

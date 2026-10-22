@@ -390,3 +390,57 @@ noting because a silent version of that bug would have produced plausible nonsen
 **Still blocked:** importance ranking and the kill criteria. Both need forward returns,
 and there is still no reachable price source. The Phase 4 gate is therefore half met —
 peers pass, importance is unstarted.
+
+---
+
+## Phase 6 — The watch (2026-10-22)
+
+**Gate: the watch detects change from the SEC daily index, scores it, and writes a
+digest that is quiet when nothing material happened.**
+
+    > sentinel watch --days 3
+    days fetched 2/3 · new events 1125
+    # SENTINEL digest — 2026-10-21
+    25 material items, 322 suppressed.
+
+The second run is idempotent: events key on (accession, event class), so re-scanning
+the same day adds nothing. The digest is written as markdown and JSON.
+
+### The bug that made it silently useless
+
+The first run reported **zero events** and a clean quiet day. That is the worst possible
+failure mode for a watch: it looks like good news.
+
+The daily index has been published in two layouts. Recent files carry ISO dates
+(`2026-10-21`); older ones carry `20240801`. My parser sliced fixed-width columns, and
+on live files the date landed as NaT and the accession came out empty, so every row was
+discarded by a null-key guard that I had added for a different reason.
+
+The fix was to stop relying on column positions at all: anchor on the date field with a
+regex that accepts both shapes, read the CIK backwards from it and the path forwards.
+Two formats are now covered by one fixture each.
+
+**Lesson recorded:** a filter that silently drops rows will report success. The watch
+now counts what it skipped and prints it.
+
+### Scoring, and what it cannot see yet
+
+Weights by form type, threshold 0.30, budget 25 per digest. Items above the threshold
+surface; everything else is counted as suppressed so the number is visible rather than
+implied.
+
+Item-level 8-K classification (2.02 results, 4.02 non-reliance, 5.02 officer changes)
+needs the filing's own metadata and is **not** wired in. Every 8-K currently scores 0.60
+regardless of what it contains, which is why the digest is dominated by 8-Ks. That is
+the next honest improvement, not a detail.
+
+### Also in this phase: the crawler visualisation
+
+`viz/crawler.html` — a spider whose eight legs reach the spans it is extracting from a
+real filing (Apple's FY2025 10-K), with each detection classified as money, percentage,
+year or disclosure term, and a panel collecting them as it walks. The numbers in that
+page are parsed from the filing at build time, not typed.
+
+Built with a screenshot check: headless Edge renders it, and the first screenshot showed
+a 300x150 SVG viewport with the spider stranded in the corner. Fixed by sizing the SVG
+to its container.
