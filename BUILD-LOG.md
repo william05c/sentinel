@@ -288,3 +288,73 @@ have shipped.
 | Resolving the 658 tickers with no current CIK | 3b |
 | Bulk financial-statement datasets | 3b |
 | Coverage and DQ wired in as report types | 7 |
+
+---
+
+## Phase 4 — Analytics, partial (2026-10-22)
+
+**Gate result: FAILED. Peer precision@10 is 0.0 (0 of 20 hand-labelled pairs).**
+
+    > sentinel precision --k 10
+    pairs 20 · hits 0 · precision@10 0.0
+
+    KO  -> top3 [1413447, 1121788, 1967680]     expected PEP
+    PEP -> top3 [898293, 1018963, 66740]        expected KO
+    V   -> top3 [1590955, 935703, 831259]       expected MA
+
+The specification says this system must not report a result it cannot defend, so this
+phase is recorded as failed rather than tuned until the number looks passable.
+
+### What was built and measured
+
+Universe grew to **707 companies** (498 current members, 209 former), **4.59M XBRL
+facts**, **1.87M canonical rows**. Added: 14-feature company fingerprints, SIC-bucket
+z-scoring, Piotroski F, Altman Z and Z-double-prime, accruals, cash conversion, and a
+precision@k harness driven by labels written before the output was seen.
+
+### Why the peer gate failed, in order of discovery
+
+1. **Every company's "latest year" was the current partial year.** Fiscal 2026 has a
+   balance sheet and no annual income statement, so the vector was mostly missing and
+   mostly imputed. Fixed by requiring an annual income statement to define a usable year.
+2. **Missing features were imputed with zero**, which made sparse companies identical.
+   Fixed with cross-sectional median imputation and a completeness filter.
+3. **Peers were filtered to an exact fiscal-year match**, excluding every company whose
+   year-end differed by a month. Fixed with a one-year window.
+4. **After all three fixes the result is still 0/20.** The remaining cause is the design,
+   not a bug: fourteen profitability and leverage ratios do not identify a business.
+   Every large profitable company has similar margins; cosine similarity in that space
+   is dominated by a few common dimensions and ties. The top-3 lists share CIKs across
+   unrelated targets, which is the signature of a degenerate metric space.
+
+The next attempt needs scale (log assets, log revenue), industry dummies and
+business-mix features - R&D intensity, capex intensity, segment concentration - and a
+rank-based evaluation. That is a rebuild of the fingerprint, not a parameter change, so
+it is not attempted here under time pressure.
+
+### Blocked: correlation, importance and event studies
+
+All three need returns, and no price source is reachable from this machine today:
+
+| Source | Result |
+|---|---|
+| Stooq CSV | returns an HTML JavaScript challenge instead of data (200, not CSV) |
+| Yahoo chart API | HTTP 429 through the proxy, connection refused direct |
+
+Without prices there is no return series, so no correlation atlas, no information
+coefficient, no event study and no calibration table. Nothing was substituted for them.
+This is the single largest gap in the project: Phase 5 (forecasting) is also blocked
+behind it.
+
+### Also not implemented
+
+Beneish M and Ohlson O. Both need lagged SG&A and receivables intensities that the
+current dictionary does not supply reliably; approximating them would produce scores
+that look authoritative and are not.
+
+### Added but not yet populated
+
+`assets_current` and `liabilities_current` were added to the dictionary for Altman's
+working-capital term. The facts are already on disk but need one `sentinel reparse` pass
+to enter the warehouse. Altman currently withholds its score rather than substituting a
+zero for working capital.

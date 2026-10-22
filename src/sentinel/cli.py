@@ -229,6 +229,94 @@ def restatements(limit: int = typer.Option(10, help="rows to show")) -> None:
 
 
 @app.command()
+def peers(ticker: str = typer.Option(..., help="e.g. --ticker AAPL"), k: int = typer.Option(10)) -> None:
+    """Nearest companies by fingerprint similarity.
+
+    Example: sentinel peers --ticker KO --k 10
+    """
+    from sentinel.analytics import fingerprint
+
+    paths = _paths()
+    con = db.init(paths.db)
+    cik = _resolve_cik(con, paths, ticker, None)
+    frame = fingerprint.peers(con, cik, k=k)
+    table = Table(title=f"peers for {ticker.upper()}")
+    for column in ("cik", "fiscal_year", "similarity", "bucket", "net_margin", "roe", "leverage"):
+        table.add_column(column)
+    for _, row in frame.iterrows():
+        table.add_row(str(int(row["cik"])), str(int(row["fiscal_year"])), f"{row['similarity']:.3f}",
+                      str(row["bucket"]),
+                      f"{row['net_margin']*100:.1f}%" if pd.notna(row["net_margin"]) else "n/a",
+                      f"{row['roe']*100:.1f}%" if pd.notna(row["roe"]) else "n/a",
+                      f"{row['leverage']:.2f}" if pd.notna(row["leverage"]) else "n/a")
+    console.print(table)
+
+
+@app.command()
+def quality(ticker: str = typer.Option(..., help="e.g. --ticker AAPL")) -> None:
+    """Accounting-quality scorecard for one company.
+
+    Example: sentinel quality --ticker AAPL
+    """
+    from sentinel.analytics import fingerprint, quality as quality_mod
+    from sentinel.reports.render import apply_format
+
+    paths = _paths()
+    con = db.init(paths.db)
+    cik = _resolve_cik(con, paths, ticker, None)
+    frame = quality_mod.score(fingerprint.panel(con))
+    frame = frame[frame["cik"] == cik].sort_values("fiscal_year", ascending=False).head(5)
+    table = Table(title=f"quality for {ticker.upper()}")
+    for column in ("year", "piotroski", "band", "altman_z2", "z_band", "cash_conv", "accruals"):
+        table.add_column(column)
+    for _, row in frame.iterrows():
+        table.add_row(
+            str(int(row["fiscal_year"])),
+            f"{row['piotroski_f']:.0f}" if pd.notna(row["piotroski_f"]) else "n/a",
+            str(row["piotroski_band"]),
+            f"{row['altman_z2']:.2f}" if pd.notna(row["altman_z2"]) else "n/a",
+            str(row["altman_band"]),
+            f"{row['cash_conversion']:.2f}" if pd.notna(row["cash_conversion"]) else "n/a",
+            f"{row['accruals']:.3f}" if pd.notna(row["accruals"]) else "n/a",
+        )
+    console.print(table)
+    for name, caveat in quality_mod.CAVEATS.items():
+        console.print(f"[dim]{name}: {caveat}[/dim]")
+
+
+@app.command()
+def precision(k: int = typer.Option(10, help="peer list size")) -> None:
+    """Precision@k of the peer fingerprints against hand-labelled pairs.
+
+    Example: sentinel precision --k 10
+    """
+    from sentinel.analytics import fingerprint
+
+    paths = _paths()
+    con = db.init(paths.db)
+    pairs = [
+        ("KO", "PEP"), ("PEP", "KO"), ("V", "MA"), ("MA", "V"),
+        ("XOM", "CVX"), ("CVX", "XOM"), ("HD", "LOW"), ("LOW", "HD"),
+        ("INTC", "AMD"), ("AMD", "INTC"), ("JPM", "BAC"), ("BAC", "JPM"),
+        ("WMT", "TGT"), ("TGT", "WMT"), ("NEE", "DUK"), ("DUK", "NEE"),
+        ("SPG", "PLD"), ("PLD", "SPG"), ("UNH", "CI"), ("CI", "UNH"),
+    ]
+    labelled: dict[int, int] = {}
+    for left, right in pairs:
+        lc = _company_cik(con, left)
+        rc = _company_cik(con, right)
+        if lc and rc:
+            labelled[lc] = rc
+    result = fingerprint.precision_at_k(con, labelled, k=k)
+    console.print(f"pairs {result['pairs']} · hits {result['hits']} · precision@{k} {result['precision_at_k']}")
+    for detail in result["details"]:
+        if not detail["hit"]:
+            console.print(f"  miss: {detail['cik']} expected {detail['expected']} top3 {detail['top']}")
+    if result["pairs"] < 10:
+        console.print("[yellow]fewer than 10 labelled pairs are loaded; increase the universe first[/yellow]")
+
+
+@app.command()
 def golden(n: int = typer.Option(25, help="companies to reconcile"), years: int = typer.Option(5)) -> None:
     """Reconcile canonical values against SEC's concept endpoint.
 

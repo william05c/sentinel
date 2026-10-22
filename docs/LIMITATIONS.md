@@ -53,3 +53,16 @@ like a gap is a gap; nothing is silently approximated.
   with digits elsewhere). It catches missing occurrences, not unexpected ones.
 - `ingest_run.status` records "error" but the exception is re-raised before the row is
   committed in some paths, so a hard crash can leave no run record.
+
+## Analytics (updated after Phase 4)
+
+- **Peer matching does not work.** Precision@10 is 0 of 20. The fingerprint is fourteen
+  financial ratios; that is not enough to identify a business. Do not use `sentinel peers`
+  for anything.
+- **No prices, therefore no returns.** Stooq serves a JavaScript challenge and Yahoo
+  returns 429 from this machine. Correlation, importance, event studies and forecasting
+  are blocked on a price source, not on code.
+- **Beneish M and Ohlson O are not implemented.** Piotroski F, Altman Z/Z'' and Sloan
+  accruals are.
+- **Altman currently returns n/a** until one reparse populates current assets and
+  current liabilities; the score is withheld rather than approximated.

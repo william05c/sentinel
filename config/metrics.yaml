@@ -529,3 +529,20 @@ metrics:
     unit: USD
     definition: "Cash paid for acquisitions, net of cash acquired."
     tags: [PaymentsToAcquireBusinessesNetOfCashAcquired]
+
+  # --- liquidity (added for Altman and Piotroski) ---------------------------
+  - id: assets_current
+    label: "Current assets"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Total current assets."
+    tags: [AssetsCurrent]
+
+  - id: liabilities_current
+    label: "Current liabilities"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Total current liabilities."
+    tags: [LiabilitiesCurrent]
