@@ -57,7 +57,8 @@ def test_restatement_is_detected_with_direction_and_size():
     assert row["prior_accession"] == "ORIG"
 
     summary = restatements.summary(con)
-    assert summary["restated_values"] == 1
+    assert summary["value_changes"] == 1
+    assert summary["scale_changes"] == 0
     assert summary["companies_affected"] == 1
 
 
