@@ -27,3 +27,6 @@ reports/out/
 # Generated
 *.log
 *.tmp
+
+# Crawler visualisation: the source filing is downloaded on demand, not committed
+viz/_source.htm
