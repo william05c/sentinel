@@ -254,3 +254,278 @@ metrics:
     unit: USD
     definition: "Share-based compensation expense."
     tags: [ShareBasedCompensation, AllocatedShareBasedCompensationExpense]
+
+  # --- balance sheet detail -------------------------------------------------
+  - id: accounts_payable
+    label: "Accounts payable"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Current trade payables."
+    tags: [AccountsPayableCurrent]
+
+  - id: accrued_liabilities
+    label: "Accrued liabilities"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Current accrued liabilities."
+    tags: [AccruedLiabilitiesCurrent]
+
+  - id: ppe_net
+    label: "Property, plant and equipment"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Net PP&E."
+    tags: [PropertyPlantAndEquipmentNet]
+
+  - id: intangibles
+    label: "Intangible assets"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Intangibles excluding goodwill."
+    tags: [FiniteLivedIntangibleAssetsNet, IntangibleAssetsNetExcludingGoodwill]
+
+  - id: deferred_revenue
+    label: "Deferred revenue"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Contract liabilities, current."
+    tags: [ContractWithCustomerLiabilityCurrent, DeferredRevenueCurrent]
+
+  - id: retained_earnings
+    label: "Retained earnings"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Accumulated retained earnings or deficit."
+    tags: [RetainedEarningsAccumulatedDeficit]
+
+  - id: treasury_stock
+    label: "Treasury stock"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Cost of treasury shares."
+    tags: [TreasuryStockValue]
+
+  - id: minority_interest
+    label: "Noncontrolling interest"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Noncontrolling interest in subsidiaries."
+    tags: [MinorityInterest]
+
+  - id: preferred_stock
+    label: "Preferred stock"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Preferred stock at carrying value."
+    tags: [PreferredStockValue]
+
+  - id: short_term_debt
+    label: "Short-term debt"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Current portion of debt."
+    tags: [LongTermDebtCurrent]
+
+  - id: operating_lease_liability
+    label: "Operating lease liability"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Operating lease liability."
+    tags: [OperatingLeaseLiability]
+
+  - id: finance_lease_liability
+    label: "Finance lease liability"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Finance lease liability, noncurrent."
+    tags: [FinanceLeaseLiabilityNoncurrent]
+
+  - id: deferred_tax_assets
+    label: "Deferred tax assets"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Net deferred tax assets."
+    tags: [DeferredIncomeTaxAssetsNet]
+
+  - id: deferred_tax_liabilities
+    label: "Deferred tax liabilities"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Net deferred tax liabilities."
+    tags: [DeferredIncomeTaxLiabilitiesNet]
+
+  - id: allowances_doubtful
+    label: "Allowance for doubtful accounts"
+    statement: balance
+    period: instant
+    unit: USD
+    definition: "Allowance for credit losses on receivables."
+    tags: [AllowanceForDoubtfulAccountsReceivableCurrent]
+
+  # --- income detail --------------------------------------------------------
+  - id: marketing_expense
+    label: "Marketing expense"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Marketing expense where separately disclosed."
+    tags: [MarketingExpense]
+
+  - id: advertising_expense
+    label: "Advertising expense"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Advertising expense where separately disclosed."
+    tags: [AdvertisingExpense]
+
+  - id: equity_method_income
+    label: "Equity method income"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Income from equity method investments."
+    tags: [IncomeLossFromEquityMethodInvestments]
+
+  - id: nonoperating_income
+    label: "Non-operating income"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Non-operating income and expense."
+    tags: [NonoperatingIncomeExpense]
+
+  - id: discontinued_operations
+    label: "Discontinued operations"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Income from discontinued operations, net of tax."
+    tags: [IncomeLossFromDiscontinuedOperationsNetOfTax]
+
+  - id: net_income_nci
+    label: "Net income to noncontrolling interest"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Net income attributable to noncontrolling interests."
+    tags: [NetIncomeLossAttributableToNoncontrollingInterest]
+
+  - id: operating_expenses
+    label: "Operating expenses"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Total operating expenses."
+    tags: [OperatingExpenses]
+
+  - id: restructuring
+    label: "Restructuring charges"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Restructuring, severance and exit costs."
+    tags: [RestructuringCharges]
+
+  - id: impairments
+    label: "Impairment charges"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Goodwill and asset impairment."
+    tags: [GoodwillImpairmentLoss, AssetImpairmentCharges]
+
+  - id: eps_basic
+    label: "Basic EPS"
+    statement: income
+    period: duration
+    unit: USD-per-shares
+    definition: "Basic earnings per share."
+    tags: [EarningsPerShareBasic]
+
+  - id: dps
+    label: "Dividends per share"
+    statement: share
+    period: duration
+    unit: USD-per-shares
+    definition: "Common dividends declared per share."
+    tags: [CommonStockDividendsPerShareDeclared]
+
+  - id: shares_issued
+    label: "Shares issued"
+    statement: share
+    period: instant
+    unit: shares
+    definition: "Common shares issued."
+    tags: [CommonStockSharesIssued]
+
+  - id: operating_lease_cost
+    label: "Operating lease cost"
+    statement: income
+    period: duration
+    unit: USD
+    definition: "Operating lease cost."
+    tags: [OperatingLeaseCost]
+
+  # --- cash flow detail -----------------------------------------------------
+  - id: income_taxes_paid
+    label: "Income taxes paid"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Cash paid for income taxes."
+    tags: [PaymentsForIncomeTaxes]
+
+  - id: interest_paid
+    label: "Interest paid"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Cash paid for interest."
+    tags: [InterestPaidNet, InterestPaid]
+
+  - id: debt_issued
+    label: "Debt issued"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Proceeds from issuance of long-term debt."
+    tags: [ProceedsFromIssuanceOfLongTermDebt]
+
+  - id: debt_repaid
+    label: "Debt repaid"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Repayments of long-term debt."
+    tags: [RepaymentsOfLongTermDebt]
+
+  - id: equity_issued
+    label: "Equity issued"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Proceeds from issuance of common stock."
+    tags: [ProceedsFromIssuanceOfCommonStock]
+
+  - id: acquisitions_cash
+    label: "Acquisitions"
+    statement: cashflow
+    period: duration
+    unit: USD
+    definition: "Cash paid for acquisitions, net of cash acquired."
+    tags: [PaymentsToAcquireBusinessesNetOfCashAcquired]

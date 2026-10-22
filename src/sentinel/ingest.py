@@ -7,6 +7,7 @@ to look, and a run that wrote zero rows is distinguishable from one that never r
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -15,6 +16,7 @@ import pandas as pd
 from sentinel import PARSER_VERSION, SCHEMA_VERSION
 from sentinel.adapters import sec
 from sentinel.config import metrics_config
+from sentinel.crawler.net import RawStore
 from sentinel.normalize import canonical
 from sentinel.warehouse import db
 
@@ -76,7 +78,7 @@ def ingest_company(con, fetcher, cik: int, *, run_id: str | None = None) -> dict
         counts["filings"] = db.replace_rows(con, "fact_filing", _naive(frames["filings"]), ["accession"])
 
         accepted = {
-            row["accession"]: row["acceptance_dt"].to_pydatetime().replace(tzinfo=timezone.utc)
+            row["accession"]: row["acceptance_dt"].to_pydatetime().replace(tzinfo=None)
             for _, row in frames["filings"].iterrows()
             if pd.notna(row["acceptance_dt"])
         }
@@ -131,3 +133,44 @@ def ingest_company(con, fetcher, cik: int, *, run_id: str | None = None) -> dict
 
     counts["run_id"] = run_id  # type: ignore[assignment]
     return counts
+
+
+def reparse_company(con, store, cik: int, *, run_id: str | None = None) -> int:
+    """Re-parse a company's cached company-facts payload with the current dictionary.
+
+    The raw store is immutable and content-addressed, so widening the metric dictionary
+    does not require re-downloading 497 companies: the bytes are already on disk and
+    are parsed again. This is the payoff for keeping the raw layer instead of parsing
+    on the fly.
+    """
+    url = sec.COMPANYFACTS_URL.format(cik=cik)
+    entry = store.lookup(url)
+    if entry is None:
+        raise LookupError("no cached company facts for CIK " + str(cik))
+    payload = json.loads(store.read(entry["sha256"]))
+    accepted = {
+        row[0]: row[1]
+        for row in con.execute(
+            "SELECT accession, acceptance_dt FROM fact_filing WHERE cik = ? AND acceptance_dt IS NOT NULL",
+            [cik],
+        ).fetchall()
+    }
+    facts = sec.parse_companyfacts(
+        payload,
+        url=url,
+        retrieved_at=datetime.fromisoformat(entry["fetched_at"]).replace(tzinfo=None),
+        document_sha256=entry["sha256"],
+        run_id=run_id or new_run_id("reparse"),
+        allowed_tags=sec.dictionary_tags(metrics_config()),
+        accepted_at_by_accession=accepted,
+    )
+    db.run(con, "DELETE FROM fact_xbrl WHERE cik = ?", [cik])
+    if not facts.empty:
+        con.register("_facts", _naive(facts))
+        try:
+            cols = ", ".join(facts.columns)
+            db.run(con, "INSERT INTO fact_xbrl (" + cols + ") SELECT " + cols + " FROM _facts")
+        finally:
+            con.unregister("_facts")
+    canonical.materialize(con, cik)
+    return len(facts)

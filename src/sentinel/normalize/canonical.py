@@ -101,6 +101,8 @@ def build_canonical(
 ) -> pd.DataFrame:
     """Select one value per (metric, period) using only facts known as of as_of."""
     as_of = as_of or datetime.now(timezone.utc)
+    if as_of.tzinfo is not None:
+        as_of = as_of.astimezone(timezone.utc).replace(tzinfo=None)
     sql = CANONICAL_SQL.format(bucket=BUCKET_SQL)
     frame = db.query(con, sql, [cik, as_of])
     if frame.empty:

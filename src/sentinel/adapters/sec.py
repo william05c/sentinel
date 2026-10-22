@@ -36,7 +36,11 @@ def _to_ts(value: Any) -> datetime | None:
         ts = datetime.fromisoformat(text)
     except ValueError:
         return None
-    return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+    # Stored naive in UTC. The warehouse columns are TIMESTAMP, not TIMESTAMPTZ, and a
+    # tz-aware value fails the insert on some DuckDB versions; one convention everywhere
+    # avoids a whole class of "works on my machine" bug.
+    ts = ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+    return ts.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def parse_submissions(
@@ -152,7 +156,7 @@ def parse_companyfacts(
                     filed = _to_date(fact.get("filed"))
                     accepted = accepted_map.get(accn) if accn else None
                     if accepted is None and filed is not None:
-                        accepted = datetime(filed.year, filed.month, filed.day, tzinfo=timezone.utc)
+                        accepted = datetime(filed.year, filed.month, filed.day)
                     rows.append({
                         "cik": cik,
                         "accession": accn,
@@ -185,7 +189,14 @@ def parse_companyfacts(
         "accepted_at", "frame", "source_system", "source_url", "retrieved_at",
         "document_sha256", "parser_version", "extractor_run_id", "schema_version",
     ]
-    return pd.DataFrame(rows, columns=columns)
+    frame = pd.DataFrame(rows, columns=columns)
+    # Force naive UTC datetime columns. A partially tz-aware object column makes DuckDB
+    # infer TIMESTAMPTZ for the temp view, and the insert into TIMESTAMP then fails with
+    # a conversion error that names the wrong column.
+    for name in ("accepted_at", "retrieved_at", "filed"):
+        if name in frame.columns:
+            frame[name] = pd.to_datetime(frame[name], errors="coerce", utc=True).dt.tz_localize(None)
+    return frame
 
 
 def parse_companyconcept(payload: dict) -> pd.DataFrame:

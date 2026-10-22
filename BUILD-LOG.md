@@ -230,3 +230,61 @@ intervals are kept, so the gap is visible rather than deleted.
 | Bulk dataset ingestion and streaming unzip | 3 |
 | Nasdaq-100 and NYSE breadth beyond the S&P 500 | 3 |
 | Coverage wired into the report system as report type 10 | 7 |
+
+---
+
+## Phase 3 — Dictionary, features, restatements, monitors (2026-10-22)
+
+**Gate: golden set passes — 25 companies, 1,684 values compared, 100.0% match.**
+
+    > sentinel golden --n 25
+    companies 25 · compared 1,684 · matched 1,684 · rate 100.0%
+
+    > sentinel dq
+    orphan_facts_in_window      error   144 rows
+    facts_before_filing_window  info    1,095,947 rows
+    zero_revenue                warn    112 rows
+    future_dated_facts          info    clean
+    negative_assets             info    clean
+    duplicate_accession         info    clean
+
+    > sentinel restatements
+    value_changes 100,830 across 473 companies (3.2% of facts); scale_changes 2,823
+
+### Widening the dictionary without re-downloading anything
+
+64 metrics and 95 tag mappings now, up from 30 and 57. The new tags were filtered out at
+ingest time, so the obvious move was to re-crawl 497 companies. The immutable raw store
+made that unnecessary: `sentinel reparse` re-reads the cached company-facts payloads and
+re-parses them with the new dictionary. Facts went from 2.17M to 3.10M in one local pass
+with no network calls. This is the first time the architecture earned its keep.
+
+### Four defects, all found by the monitors rather than by me
+
+1. **Restatements mixed units.** Partitioning by (cik, tag, period) but not unit compared
+   a share count against a dollar amount and called it a restatement. Unit is now in the
+   partition.
+2. **A 1000x change is not a restatement.** Share counts moving 1.02B → 1.017M are scale
+   errors or splits. They are now separated as `scale_change` (2,823 of them) instead of
+   polluting the restatement list.
+3. **The orphan check conflated two things.** Facts older than the 1000-filing window have
+   no filing row by design (1.1M of them); facts missing a filing *inside* the window are
+   a real defect (144). The check now distinguishes them.
+4. **The golden set was comparing the wrong facts.** A 10-K carries both the twelve-month
+   and the three-month facts ending on the same day, so keying on (end, accession) compared
+   an annual revenue against a quarterly one. One company showed four "mismatches" that
+   were entirely my bug. Keying on (end, start, accession) took the match rate from 99.76%
+   to 100.0%.
+
+The fourth is the one worth dwelling on: a 99.76% pass rate looked like a rounding issue
+and was actually a systematic error in the test. Had the threshold been 99%, it would
+have shipped.
+
+### Deferred
+
+| Item | Phase |
+|---|---|
+| Text extraction, Loughran-McDonald, narrative drift | 3b (filing documents, not XBRL) |
+| Resolving the 658 tickers with no current CIK | 3b |
+| Bulk financial-statement datasets | 3b |
+| Coverage and DQ wired in as report types | 7 |

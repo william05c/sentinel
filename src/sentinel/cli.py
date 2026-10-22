@@ -13,6 +13,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+import pandas as pd
+
 from sentinel.config import Paths, identity, sources_config
 from sentinel.crawler.net import HttpFetcher
 from sentinel.ingest import ensure_tag_map, ingest_company, resolve_ticker
@@ -166,6 +168,112 @@ def report(
     for name, path in result["artifacts"].items():
         console.print(f"{name:11s} {path}")
     console.print(f"snapshot    {result['provenance']['snapshot_hash']}")
+
+
+@app.command()
+def dq() -> None:
+    """Run the data-quality monitors and print what they found.
+
+    Example: sentinel dq
+    """
+    from sentinel.qa import monitors
+
+    paths = _paths()
+    con = db.init(paths.db)
+    results = monitors.run(con)
+    table = Table(title="data quality")
+    table.add_column("check")
+    table.add_column("severity")
+    table.add_column("detail")
+    for row in results:
+        table.add_row(row["check_id"], row["severity"], row["detail"])
+    console.print(table)
+
+
+@app.command()
+def restatements(limit: int = typer.Option(10, help="rows to show")) -> None:
+    """Show values that changed between two filings of the same period.
+
+    Example: sentinel restatements
+    """
+    from sentinel.normalize import restatements as restated
+
+    paths = _paths()
+    con = db.init(paths.db)
+    console.print(str(restated.summary(con)))
+    frame = restated.detect(con)
+    if not frame.empty:
+        frame = frame[frame["kind"] == "value_change"].head(limit)
+    if frame.empty:
+        console.print("no restatements found")
+        return
+    def _compact(value: float) -> str:
+        a = abs(float(value))
+        if a >= 1e9:
+            return f"{value/1e9:,.2f}B"
+        if a >= 1e6:
+            return f"{value/1e6:,.2f}M"
+        return f"{value:,.0f}"
+
+    table = Table(title="largest restatements")
+    for column in ("cik", "tag", "period", "unit", "prior", "restated", "change"):
+        table.add_column(column)
+    for _, row in frame.iterrows():
+        pct = row["pct_change"]
+        table.add_row(
+            str(row["cik"]), str(row["tag"])[:32], str(row["end_date"])[:10], str(row["unit"])[:8],
+            _compact(row["prior_value"]), _compact(row["value"]),
+            f"{pct*100:,.2f}%" if pd.notna(pct) else "n/a",
+        )
+    console.print(table)
+
+
+@app.command()
+def golden(n: int = typer.Option(25, help="companies to reconcile"), years: int = typer.Option(5)) -> None:
+    """Reconcile canonical values against SEC's concept endpoint.
+
+    Example: sentinel golden --n 25
+    """
+    from sentinel.qa import golden as golden_mod
+
+    paths = _paths()
+    con = db.init(paths.db)
+    with _fetcher(paths) as fetcher:
+        result = golden_mod.run(con, fetcher, n=n, years=years)
+    path = golden_mod.write_report(result, paths)
+    console.print(f"companies {result['companies']} · compared {result['compared']:,} · "
+                  f"matched {result['matched']:,} · rate {result['rate']}%")
+    console.print(f"written   {path}")
+    if result["rate"] < 99.0:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def reparse(limit: int = typer.Option(None, help="max companies to re-parse")) -> None:
+    """Re-parse cached filings with the current metric dictionary. No network.
+
+    Example: sentinel reparse
+    """
+    from sentinel.crawler.net import RawStore
+    from sentinel.ingest import reparse_company
+
+    paths = _paths()
+    con = db.init(paths.db)
+    ensure_tag_map(con)
+    store = RawStore(paths)
+    ciks = [r[0] for r in con.execute("SELECT DISTINCT cik FROM fact_filing ORDER BY cik").fetchall()]
+    if limit:
+        ciks = ciks[:limit]
+    done = missing = 0
+    for cik in ciks:
+        try:
+            reparse_company(con, store, int(cik))
+            done += 1
+        except LookupError:
+            missing += 1
+        if done and done % 50 == 0:
+            console.print(f"  re-parsed {done}/{len(ciks)}")
+    console.print(f"re-parsed {done}, no cached payload {missing}")
 
 
 @app.command()
