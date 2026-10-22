@@ -17,12 +17,20 @@ import pandas as pd
 
 from sentinel.features import derived
 
+# The first feature set was fourteen profitability and leverage ratios, which is not
+# enough to tell a bank from a beer maker. Scale and business mix carry most of the
+# signal, so they are here from the start of this version.
 FEATURES = [
+    "log_assets", "log_revenue",
     "gross_margin", "operating_margin", "net_margin", "roa", "roe",
-    "leverage", "asset_turnover", "cash_conversion", "accruals",
-    "fcf_margin", "sbc_pct_revenue", "dividend_payout", "interest_coverage",
-    "revenue_yoy",
+    "leverage", "asset_turnover", "cash_conversion", "accruals", "fcf_margin",
+    "capex_intensity", "rd_intensity", "sbc_pct_revenue", "inventory_intensity",
+    "receivables_intensity", "dividend_payout", "interest_coverage", "revenue_yoy",
 ]
+
+# Industry membership is a categorical fact, not a number, so it enters as weighted
+# one-hot columns rather than being folded into a ratio.
+INDUSTRY_WEIGHT = 3.0
 
 
 def panel(con, *, year: int | None = None) -> pd.DataFrame:
@@ -39,8 +47,17 @@ def panel(con, *, year: int | None = None) -> pd.DataFrame:
     # vector is mostly missing and therefore mostly imputed - which is how the peer
     # list turned into noise on the first attempt.
     out = out[out["revenue"].notna() | out["net_income"].notna()]
+    out["log_assets"] = np.log10(out["assets"].where(out["assets"] > 0))
+    out["log_revenue"] = np.log10(out["revenue"].where(out["revenue"] > 0))
+    out["capex_intensity"] = out["capex"] / out["revenue"].replace(0, np.nan)
+    out["rd_intensity"] = out["rd_expense"] / out["revenue"].replace(0, np.nan)
+    out["inventory_intensity"] = out["inventory"] / out["assets"].replace(0, np.nan)
+    out["receivables_intensity"] = out["receivables"] / out["assets"].replace(0, np.nan)
     sectors = con.execute("SELECT cik, sic FROM dim_company").fetch_df()
     out = derived.industry_zscore(out, sectors, FEATURES)
+    # Keep the four-digit SIC as a proxy for the business a company is actually in.
+    # The division bucket groups a brewer with a steel mill; the four-digit code does not.
+    out["sic4"] = out["sic"].astype(str).str.replace(r"\.0$", "", regex=True).str[:4]
     if year is not None:
         out = out[out["fiscal_year"] == year]
     return out
@@ -79,21 +96,34 @@ def peers(con, cik: int, k: int = 10, year: int | None = None,
     latest = frame.sort_values("fiscal_year").groupby("cik", as_index=False).tail(1)
     latest = latest[latest["fiscal_year"].between(target_year - 1, target_year)]
 
-    rows = latest[["cik", "fiscal_year", "bucket", "net_margin", "roe", "leverage"]].reset_index(drop=True)
+    rows = latest[["cik", "fiscal_year", "bucket", "sic4", "net_margin", "roe", "leverage"]].reset_index(drop=True)
     values = []
     for _, row in latest.iterrows():
-        values.append([row.get(f + "_z") if pd.notna(row.get(f + "_z")) else row.get(f) for f in FEATURES])
-    matrix = pd.DataFrame(values, columns=FEATURES).astype(float)
+        values.append([row.get(f) for f in FEATURES])
+    numeric = pd.DataFrame(values, columns=FEATURES).astype(float)
 
-    # Median imputation inside the cross-section, plus a completeness filter. Filling
-    # missing features with zero made every sparse company look identical, which is
-    # exactly how a peer list degenerates into noise.
-    matrix = matrix.fillna(matrix.median(numeric_only=True)).fillna(0.0)
-    keep = matrix.notna().all(axis=1)
-    matrix = matrix[keep]
+    # Completeness filter: a vector built mostly from imputed values cannot distinguish
+    # anything, so companies need at least half their features observed.
+    keep = numeric.notna().sum(axis=1) >= len(FEATURES) / 2
+    # Reset both sides. Filtering keeps the original index, and concatenating a kept
+    # numeric frame with a re-indexed dummy frame aligns on that index and silently
+    # produces a matrix of the wrong length.
+    numeric = numeric[keep].reset_index(drop=True)
     rows = rows[keep].reset_index(drop=True)
-    if matrix.empty:
+    if numeric.empty:
         return rows
+
+    numeric = numeric.fillna(numeric.median(numeric_only=True)).fillna(0.0)
+    # Standardise: log_assets spans ~4 units while a margin spans 0.3, and cosine is not
+    # scale-invariant across features that are not on the same scale.
+    std = numeric.std(ddof=0).replace(0, np.nan)
+    numeric = ((numeric - numeric.mean()) / std).fillna(0.0)
+
+    # Four-digit SIC carries most of the discrimination; the division bucket adds a
+    # weaker prior for companies whose code is too sparse to match anyone.
+    fine = pd.get_dummies(rows["sic4"], prefix="sic").astype(float) * (INDUSTRY_WEIGHT * 2)
+    coarse = pd.get_dummies(rows["bucket"], prefix="ind").astype(float) * INDUSTRY_WEIGHT
+    matrix = pd.concat([numeric, fine, coarse], axis=1)
 
     index = rows.index[rows["cik"] == cik]
     if len(index) == 0:

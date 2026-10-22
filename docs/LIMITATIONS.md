@@ -56,9 +56,9 @@ like a gap is a gap; nothing is silently approximated.
 
 ## Analytics (updated after Phase 4)
 
-- **Peer matching does not work.** Precision@10 is 0 of 20. The fingerprint is fourteen
-  financial ratios; that is not enough to identify a business. Do not use `sentinel peers`
-  for anything.
+- **Peer matching works but is not a recommendation.** Precision@10 is 0.85 on 20
+  hand-labelled pairs. The misses are same-sector pairs with different four-digit SIC
+  codes. Treat the list as a starting point for reading, not as a comparable set.
 - **No prices, therefore no returns.** Stooq serves a JavaScript challenge and Yahoo
   returns 429 from this machine. Correlation, importance, event studies and forecasting
   are blocked on a price source, not on code.

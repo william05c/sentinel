@@ -358,3 +358,35 @@ that look authoritative and are not.
 working-capital term. The facts are already on disk but need one `sentinel reparse` pass
 to enter the warehouse. Altman currently withholds its score rather than substituting a
 zero for working capital.
+
+---
+
+## Phase 4b — Peer gate retried and passed (2026-10-22)
+
+**Gate: peer precision@10 = 0.85 (17 of 20 hand-labelled pairs).**
+
+    > sentinel precision --k 10
+    pairs 20 · hits 17 · precision@10 0.85
+
+    remaining misses: WMT/TGT (SIC 5331 vs 5310), NEE/DUK (4931 vs 4911), and one other
+
+The first attempt scored 0.0. The difference was not tuning; it was three changes to
+what a fingerprint is:
+
+1. **Scale and mix.** log assets, log revenue, capex intensity, R&D intensity, inventory
+   and receivables intensity. Fourteen profitability ratios describe how profitable a
+   company is, not what it does.
+2. **Industry as a categorical fact, not a number.** Weighted one-hot columns.
+3. **Four-digit SIC.** The division bucket puts a brewer and a steel mill in
+   "manufacturing". The four-digit code separates them, and it is what took the score
+   from 0.6 to 0.85.
+
+Progress: 0.0 -> 0.6 (features + imputation fix) -> 0.85 (SIC granularity).
+
+One bug on the way: filtering a frame while another was re-indexed produced a matrix of
+the wrong length, which surfaced as a ValueError rather than as a wrong answer. Worth
+noting because a silent version of that bug would have produced plausible nonsense.
+
+**Still blocked:** importance ranking and the kill criteria. Both need forward returns,
+and there is still no reachable price source. The Phase 4 gate is therefore half met —
+peers pass, importance is unstarted.
