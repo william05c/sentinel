@@ -166,3 +166,67 @@ should not be able to fail for reasons that have nothing to do with the code.
 
     > sentinel verify 2026-10-21_dossier_AAPL.md   -> PASS (71/71)
     > sentinel verify 2020-01-01_dossier_AAPL.md   -> PASS (71/71)
+
+---
+
+## Phase 2 — Universe and backfill (2026-10-22)
+
+**Gate: 497 companies loaded, survivorship control in place, coverage report generated.**
+
+### Evidence
+
+    > sentinel universe
+    membership_rows      1,262
+    intervals_closed       759
+    current_constituents   503
+    resolved               753   (509 tickers had no CIK: renamed or dead)
+    sec_tickers         10,443
+
+    > sentinel backfill --limit 500
+    attempted 500, ok 497, failed 3
+
+    > sentinel coverage
+    companies 497 · filings 515,584 · facts 2,167,570
+    revenue 95.0% · gross_profit 51.1% · operating_income 80.7% · net_income 96.2%
+    assets 96.2% · equity 95.8% · cfo 96.2% · capex 89.5%
+
+### The finding that mattered
+
+The first sample of "former members" contained **Picard Medical, cik 2030617, as a 1996
+index member**. It is a recent company. The ticker was reused.
+
+Mapping today's ticker file onto 1996 membership intervals invented relationships that
+never existed, for **149 of 753 links (20%)**. Every one of those would have put a
+company into a historical universe it never belonged to, which is precisely the
+survivorship error this phase exists to prevent — arriving through the back door.
+
+The control now applied is narrow and checkable: a company's first ever filing cannot
+postdate the day it supposedly left the index. 149 links failed and were nulled. The
+intervals are kept, so the gap is visible rather than deleted.
+
+### Other defects fixed
+
+- A `None` company name crashed the name-join for one filer (VAT). Fixed with explicit
+  string coercion; the company then ingested cleanly.
+- `mark_status` originally labelled everything "active" because it keyed off the
+  security table, which is populated for every resolved ticker. It now classifies by
+  membership: an open interval is "active", all-closed is "former_member". A company
+  that left the index can still be trading, so it is not called "delisted".
+
+### Deliberate deviations
+
+- **Backfill uses the per-company API, not the bulk datasets.** One quarter of bulk
+  financial data is 124 MB compressed; 60 quarters for 15 years is several GB, and the
+  API path was measured at roughly one second per company. Bulk lands in Phase 3 when
+  the notes datasets are actually needed for text work.
+- **497 not 500.** Three companies failed and are recorded in the run; the target is a
+  floor for the gate, not a quota to fudge.
+
+### Deferred
+
+| Item | Phase |
+|---|---|
+| Resolving the 509 tickers with no current CIK (SEC full-text search by name) | 3 |
+| Bulk dataset ingestion and streaming unzip | 3 |
+| Nasdaq-100 and NYSE breadth beyond the S&P 500 | 3 |
+| Coverage wired into the report system as report type 10 | 7 |

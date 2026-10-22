@@ -23,10 +23,26 @@ def connect(db_path: Path | str = ":memory:", *, read_only: bool = False) -> duc
     return duckdb.connect(path, read_only=read_only)
 
 
+MIGRATIONS = [
+    "ALTER TABLE dim_index_membership ADD COLUMN IF NOT EXISTS ticker VARCHAR",
+]
+
+
 def init(db_path: Path | str) -> duckdb.DuckDBPyConnection:
-    """Connect and apply the schema. Safe to call repeatedly."""
+    """Connect, apply the schema, and bring an old warehouse up to date.
+
+    CREATE TABLE IF NOT EXISTS does nothing to an existing table, so columns added
+    after the first ingest need an explicit migration. Kept as a list of idempotent
+    statements rather than a migration framework: at this size, a framework would be
+    more machinery than the problem deserves.
+    """
     con = connect(db_path)
-    con.execute(SCHEMA_PATH.read_text(encoding="utf-8"))
+    run(con, SCHEMA_PATH.read_text(encoding="utf-8"))
+    for statement in MIGRATIONS:
+        try:
+            run(con, statement)
+        except Exception:
+            pass  # already present
     return con
 
 

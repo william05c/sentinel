@@ -35,6 +35,15 @@ sources:
     license: "US Government work (public domain)."
     enabled: true
 
+  index_history:
+    description: "S&P 500 historical membership (github fja05680/sp500). Ticker start/end dates."
+    hosts: ["raw.githubusercontent.com"]
+    requests_per_second: 1
+    burst: 1
+    cache_ttl_s: 604800
+    license: "Dataset MIT. Index constituents are S&P DJI proprietary; local research use only, never redistributed."
+    enabled: true
+
   stooq:
     description: "Daily prices. Unofficial, third-party. DISABLED by default."
     hosts: ["stooq.com"]

@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS dim_security (
 
 CREATE TABLE IF NOT EXISTS dim_index_membership (
     index_code    VARCHAR,
+    ticker        VARCHAR,
     cik           BIGINT,
     valid_from    DATE,
     valid_to      DATE,

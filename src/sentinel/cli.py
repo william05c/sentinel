@@ -16,6 +16,7 @@ from rich.table import Table
 from sentinel.config import Paths, identity, sources_config
 from sentinel.crawler.net import HttpFetcher
 from sentinel.ingest import ensure_tag_map, ingest_company, resolve_ticker
+from sentinel import universe as universe_mod
 from sentinel.reports import dossier
 from sentinel.verify import verify_report
 from sentinel.warehouse import db
@@ -97,6 +98,54 @@ def ingest(
 
 
 @app.command()
+def universe() -> None:
+    """Build the index universe: membership history plus CIK resolution.
+
+    Example: sentinel universe
+    """
+    paths = _paths()
+    con = db.init(paths.db)
+    with _fetcher(paths) as fetcher:
+        summary = universe_mod.build(con, fetcher)
+    table = Table(title="universe")
+    table.add_column("measure")
+    table.add_column("value", justify="right")
+    for key, value in summary.items():
+        table.add_row(str(key), f"{value:,}" if isinstance(value, int) else str(value))
+    console.print(table)
+
+
+@app.command()
+def backfill(
+    limit: int = typer.Option(None, help="max companies to ingest (default: all resolved)"),
+    include_closed: bool = typer.Option(True, help="include names that left the index"),
+) -> None:
+    """Ingest companies from the universe. Resumable: re-running is idempotent.
+
+    Example: sentinel backfill --limit 50
+    """
+    from rich.progress import Progress
+
+    paths = _paths()
+    con = db.init(paths.db)
+    ensure_tag_map(con)
+    with _fetcher(paths) as fetcher, Progress() as progress:
+        task = progress.add_task("ingesting", total=1)
+
+        def report_progress(i: int, total: int, ticker: str, ok: int, failed: int) -> None:
+            progress.update(task, total=total, completed=i,
+                            description=f"{ticker} ok={ok} failed={failed}")
+
+        stats = universe_mod.backfill(con, fetcher, limit=limit, include_closed=include_closed,
+                                     progress=report_progress)
+    console.print(f"attempted {stats['attempted']}, ok {stats['ok']}, failed {stats['failed']}")
+    for ticker, message in stats["failures"][:10]:
+        console.print(f"  [red]{ticker}[/red] {message}")
+    console.print(f"validated: {universe_mod.validate_membership(con)}")
+    console.print(f"status: {universe_mod.mark_status(con)}")
+
+
+@app.command()
 def report(
     kind: str = typer.Argument("dossier", help="report kind (dossier)"),
     ticker: str = typer.Option(None, help="e.g. --ticker AAPL"),
@@ -117,6 +166,22 @@ def report(
     for name, path in result["artifacts"].items():
         console.print(f"{name:11s} {path}")
     console.print(f"snapshot    {result['provenance']['snapshot_hash']}")
+
+
+@app.command()
+def coverage() -> None:
+    """Write a coverage report: companies, metrics, history, unresolved universe.
+
+    Example: sentinel coverage
+    """
+    from sentinel.qa import coverage as coverage_mod
+
+    paths = _paths()
+    con = db.init(paths.db)
+    result = coverage_mod.build(con, paths)
+    console.print(f"companies {result['companies']:,} · filings {result['filings']:,} · facts {result['facts']:,}")
+    console.print("coverage: " + ", ".join(f"{k} {v}%" for k, v in result["coverage"].items()))
+    console.print(f"written   {result['path']}")
 
 
 @app.command()

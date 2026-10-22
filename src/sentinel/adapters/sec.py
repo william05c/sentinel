@@ -59,7 +59,7 @@ def parse_submissions(
     company = pd.DataFrame([{
         "cik": cik,
         "name": payload.get("name") or "",
-        "former_names": " | ".join(f.get("name", "") for f in former) or None,
+        "former_names": " | ".join(str(f.get("name") or "") for f in former) or None,
         "entity_type": payload.get("entityType"),
         "sic": payload.get("sic"),
         "sic_description": payload.get("sicDescription"),
@@ -68,8 +68,8 @@ def parse_submissions(
         "status": "active",
         "first_filing_date": min(non_null) if non_null else None,
         "last_filing_date": max(non_null) if non_null else None,
-        "tickers": ",".join(tickers) or None,
-        "exchanges": ",".join(exchanges) or None,
+        "tickers": ",".join(str(t) for t in tickers) or None,
+        "exchanges": ",".join(str(e) for e in exchanges) or None,
         "source_system": "sec_edgar",
         "source_url": url,
         "retrieved_at": retrieved_at,
@@ -78,8 +78,8 @@ def parse_submissions(
 
     securities = pd.DataFrame([{
         "cik": cik,
-        "ticker": ticker,
-        "exchange": exchanges[i] if i < len(exchanges) else None,
+        "ticker": str(ticker),
+        "exchange": str(exchanges[i]) if i < len(exchanges) else None,
         "share_class": None,
         "is_primary": i == 0,
         "valid_from": None,
