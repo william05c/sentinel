@@ -108,11 +108,11 @@ const D = {
   }
  }
 };
-const W = 1000, H = 980;
+const W = 1080, H = 900;
 const NS = 'http://www.w3.org/2000/svg';
 const svg = document.createElementNS(NS,'svg');
 svg.setAttribute('viewBox','0 0 '+W+' '+H);
-svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+svg.setAttribute('preserveAspectRatio','xMidYMid meet'); document.getElementById('scene').style.overflow='hidden';
 
 const defs = document.createElementNS(NS,'defs');
 defs.innerHTML = '<filter id="g" x="-60%" y="-60%" width="220%" height="220%">' +
@@ -135,7 +135,7 @@ function label(x,y,t,cls,anchor) {
 }
 
 // stage y positions (bottom to top)
-const Y = { company:905, tags:755, facts:590, canonical:420, binding:265, verify:120 };
+const Y = { company:846, tags:706, facts:556, canonical:400, binding:252, verify:112 };
 const CX = W/2;
 
 // ---- root: company
@@ -145,7 +145,7 @@ label(CX,Y.company+48,D.company.name+'  ·  '+D.company.sic,'micro');
 
 // ---- stage: tag chain (six candidates)
 const n = D.chain.length;
-const spread = 820, left = CX - spread/2;
+const spread = 900, left = CX - spread/2;
 D.chain.forEach((c,i) => {
   const x = n===1 ? CX : left + i*(spread/(n-1));
   const live = i === 0;
