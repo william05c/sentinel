@@ -477,3 +477,27 @@ misaligned data is not a better metric for being higher.
 six candidate tags, five of them never reported, two accessions carrying the same
 $391.0B, the canonical selection, the report binding, and the verification result.
 Every label is read from the warehouse.
+
+---
+
+## Phase 6b — The crawler, rebuilt and served (2026-10-22)
+
+The visualisation is now an actual arachnid: cephalothorax, abdomen, four eyes, and
+eight two-segment legs that place their feet on the spans being extracted, with a
+stepping gait so the animal walks down the document as it reads.
+
+It is served rather than opened as a file, because `file://` blocks the `fetch` that
+makes auto-update possible:
+
+    python scripts/serve_viz.py 8777
+    http://127.0.0.1:8777/crawler.html
+
+**Auto-update:** the page polls `data.json` every 2.5 s and re-renders when the
+signature (accession + line count + span count) changes; the footer shows the time of
+the last update. Regenerating `viz/data.json` therefore updates the running page with
+no refresh. The server sends `no-store` so a stale cache cannot fake freshness.
+
+Three rendering defects were caught by screenshotting rather than by reading the code:
+the SVG had no intrinsic size and defaulted to 300x150, the leg control points inverted
+and drew loops through the body, and the text ran underneath the animal until the line
+padding reserved a column for it.

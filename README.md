@@ -45,6 +45,12 @@ Current warehouse: **4.59M XBRL facts**, **515k filings**, **1.87M canonical row
     .\.venv\Scripts\sentinel.exe report dossier --ticker AAPL
     .\.venv\Scripts\sentinel.exe verify reports\out\<date>\<date>_dossier_AAPL.md
 
+The visualisations need a server (`file://` blocks the data fetch):
+
+    python scripts/serve_viz.py 8777
+    # http://127.0.0.1:8777/crawler.html     spider reading a filing, auto-updating
+    # http://127.0.0.1:8777/provenance.html  decision path for one reported number
+
 Then, depending on what you want:
 
     sentinel watch --days 3                      # what changed, and only if it matters
