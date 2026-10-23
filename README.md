@@ -8,10 +8,14 @@ The product is not a dashboard and not a price predictor. It is **findings with
 provenance**: every figure traceable to an accession number, every claim re-runnable.
 
 ![Crawler view](viz/crawler.png)
+![Provenance](viz/provenance.png)
 
-*Above: [`viz/crawler.html`](viz/crawler.html) — a spider whose legs reach the spans it
-extracts from Apple's FY2025 10-K. The text and the 49 highlights are parsed from the
-filing, not typed.*
+*Top: [`viz/crawler.html`](viz/crawler.html) — a spider whose legs reach the spans it extracts
+from Apple's FY2025 10-K; the text and 49 highlights are parsed from the filing, not typed.*
+
+*Second: [`viz/provenance.html`](viz/provenance.html) — the real decision path behind one
+reported figure: six candidate tags, five never reported, two accessions carrying the same
+$391.0B, and the verification result.*
 
 ---
 
@@ -23,7 +27,7 @@ filing, not typed.*
 | 1 — Vertical slice | done | dossier with 71 bound figures, all re-verified |
 | 2 — Universe and backfill | done | 707 companies, 759 closed index intervals retained |
 | 3 — Dictionary and golden set | done | 64 metrics, 1,684 values reconciled against SEC, **100.0%** |
-| 4 — Analytics | partial | peer precision@10 **0.85**; quality scores; importance **blocked on prices** |
+| 4 — Analytics | partial | peer precision@10 **0.789**; quality scores; importance **blocked on prices** |
 | 6 — The watch | done | daily-index change detection, 1,125 events, quiet-by-default digest |
 | 5, 7 — Forecast, reports, dashboard | not started | blocked on price data / not built |
 

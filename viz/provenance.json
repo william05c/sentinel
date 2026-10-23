@@ -1,0 +1,73 @@
+{
+ "company": {
+  "name": "Apple Inc.",
+  "ticker": "AAPL",
+  "cik": 320193,
+  "sic": "Electronic Computers"
+ },
+ "metric": "revenue",
+ "period_end": "2024-09-28",
+ "rendered": "$391.0B",
+ "chain": [
+  {
+   "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+   "priority": 0
+  },
+  {
+   "tag": "Revenues",
+   "priority": 1
+  },
+  {
+   "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+   "priority": 2
+  },
+  {
+   "tag": "SalesRevenueNet",
+   "priority": 3
+  },
+  {
+   "tag": "SalesRevenueGoodsNet",
+   "priority": 4
+  },
+  {
+   "tag": "RevenuesNetOfInterestExpense",
+   "priority": 5
+  }
+ ],
+ "facts": [
+  {
+   "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+   "priority": 0,
+   "value": 391035000000.0,
+   "accession": "0000320193-24-000123",
+   "accepted": "2024-11-01 14:01:36",
+   "form": "10-K",
+   "filed": "2024-11-01",
+   "start": "2023-10-01",
+   "end": "2024-09-28"
+  },
+  {
+   "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+   "priority": 0,
+   "value": 391035000000.0,
+   "accession": "0000320193-25-000079",
+   "accepted": "2025-10-31 14:01:26",
+   "form": "10-K",
+   "filed": "2025-10-31",
+   "start": "2023-10-01",
+   "end": "2024-09-28"
+  }
+ ],
+ "filings": {
+  "0000320193-24-000123": {
+   "form": "10-K",
+   "filed": "2024-11-01",
+   "accepted": "2024-11-01 14:01:36"
+  },
+  "0000320193-25-000079": {
+   "form": "10-K",
+   "filed": "2025-10-31",
+   "accepted": "2025-10-31 14:01:26"
+  }
+ }
+}

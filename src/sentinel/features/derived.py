@@ -51,15 +51,26 @@ def sic_bucket(sic: str | int | None) -> str:
 
 
 def pivot_annual(canonical: pd.DataFrame) -> pd.DataFrame:
-    """One row per (cik, fiscal year) with a column per metric.
+    """One row per (cik, period year) with a column per metric.
 
-    Fiscal years come from the filing, not from calendar arithmetic, so a 52/53-week
-    retailer lands on its own year boundary rather than being rounded into December.
+    The year comes from the PERIOD END DATE, not from the XBRL fiscal-year tag. That tag
+    belongs to the filing, not the fact: Apple's FY2025 10-K reports FY2023 revenue of
+    $383.3B under fy=2025, so grouping by it would file a 2023 number under 2025 and
+    silently misalign every derived ratio.
+
+    Only annual durations and instants are kept, so a Q1 figure cannot stand in for a
+    year via an aggregation order.
     """
     if canonical.empty:
         return canonical
-    frame = canonical[canonical["fiscal_year"].notna()].copy()
-    frame["fiscal_year"] = frame["fiscal_year"].astype(int)
+    frame = canonical[canonical["end_date"].notna()].copy()
+    start = pd.to_datetime(frame["start_date"])
+    end = pd.to_datetime(frame["end_date"])
+    frame["dur_days"] = (end - start).dt.days
+    is_annual = (frame["period_type"] == "duration") & frame["dur_days"].between(350, 380)
+    is_instant = frame["period_type"] == "instant"
+    frame = frame[is_annual | is_instant]
+    frame["fiscal_year"] = end.dt.year
     frame = frame[frame["fiscal_year"].between(1995, 2100)]
     wide = frame.pivot_table(
         index=["cik", "fiscal_year"], columns="metric_id", values="value", aggfunc="last"

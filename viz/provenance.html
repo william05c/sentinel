@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>SENTINEL — provenance</title>
+<style>
+ :root{--bg:#080b0f;--ink:#c8d6e5;--dim:#4a5b6d;--lit:#eaf4ff;--glow:#7fe3ff;--ok:#4ade80;--no:#26313d}
+ *{box-sizing:border-box}
+ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+   font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow:hidden}
+ .stage{display:grid;grid-template-columns:1fr 340px;height:100vh}
+ svg{width:100%;height:100%;display:block}
+ aside{border-left:1px solid #16202b;padding:26px 22px;overflow:hidden}
+ aside h1{margin:0 0 4px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+ aside .big{font-size:26px;color:var(--lit);letter-spacing:-.02em;margin:0 0 2px}
+ aside .sub{color:var(--dim);margin-bottom:22px}
+ .row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #101821}
+ .row .k{color:var(--dim);min-width:74px;text-transform:uppercase;font-size:9px;letter-spacing:.14em;padding-top:2px}
+ .row .v{color:var(--ink);word-break:break-all}
+ .pass{color:var(--ok)}
+ .micro{font-size:9px;letter-spacing:.1em;text-transform:uppercase;fill:var(--dim)}
+ .val{font-size:12px;fill:var(--lit);letter-spacing:.02em}
+ .lit{stroke:var(--glow);stroke-width:1.3;fill:none;filter:url(#g)}
+ .dimline{stroke:#1d2a36;stroke-width:1;fill:none}
+ .node{fill:#0d141c;stroke:#2a3a4a}
+ .nodelit{fill:#0f1c26;stroke:var(--glow);filter:url(#g)}
+ .dot{fill:var(--glow)}
+ .dimmer{fill:#141d26}
+</style></head>
+<body>
+<div class="stage">
+  <div id="scene"></div>
+  <aside>
+    <h1>Provenance</h1>
+    <p class="big" id="v">—</p>
+    <div class="sub" id="s">—</div>
+    <div id="rows"></div>
+  </aside>
+</div>
+<script>
+const D = {
+ "company": {
+  "name": "Apple Inc.",
+  "ticker": "AAPL",
+  "cik": 320193,
+  "sic": "Electronic Computers"
+ },
+ "metric": "revenue",
+ "period_end": "2024-09-28",
+ "rendered": "$391.0B",
+ "chain": [
+  {
+   "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+   "priority": 0
+  },
+  {
+   "tag": "Revenues",
+   "priority": 1
+  },
+  {
+   "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+   "priority": 2
+  },
+  {
+   "tag": "SalesRevenueNet",
+   "priority": 3
+  },
+  {
+   "tag": "SalesRevenueGoodsNet",
+   "priority": 4
+  },
+  {
+   "tag": "RevenuesNetOfInterestExpense",
+   "priority": 5
+  }
+ ],
+ "facts": [
+  {
+   "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+   "priority": 0,
+   "value": 391035000000.0,
+   "accession": "0000320193-24-000123",
+   "accepted": "2024-11-01 14:01:36",
+   "form": "10-K",
+   "filed": "2024-11-01",
+   "start": "2023-10-01",
+   "end": "2024-09-28"
+  },
+  {
+   "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+   "priority": 0,
+   "value": 391035000000.0,
+   "accession": "0000320193-25-000079",
+   "accepted": "2025-10-31 14:01:26",
+   "form": "10-K",
+   "filed": "2025-10-31",
+   "start": "2023-10-01",
+   "end": "2024-09-28"
+  }
+ ],
+ "filings": {
+  "0000320193-24-000123": {
+   "form": "10-K",
+   "filed": "2024-11-01",
+   "accepted": "2024-11-01 14:01:36"
+  },
+  "0000320193-25-000079": {
+   "form": "10-K",
+   "filed": "2025-10-31",
+   "accepted": "2025-10-31 14:01:26"
+  }
+ }
+};
+const W = 1000, H = 980;
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.createElementNS(NS,'svg');
+svg.setAttribute('viewBox','0 0 '+W+' '+H);
+svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+
+const defs = document.createElementNS(NS,'defs');
+defs.innerHTML = '<filter id="g" x="-60%" y="-60%" width="220%" height="220%">' +
+  '<feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/>' +
+  '<feMergeNode in="SourceGraphic"/></feMerge></filter>';
+svg.appendChild(defs);
+
+function el(name, attrs, text) {
+  const n = document.createElementNS(NS, name);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text !== undefined) n.textContent = text;
+  svg.appendChild(n); return n;
+}
+function curve(x1,y1,x2,y2) {
+  const my = (y1+y2)/2;
+  return 'M'+x1+','+y1+' C'+x1+','+my+' '+x2+','+my+' '+x2+','+y2;
+}
+function label(x,y,t,cls,anchor) {
+  el('text',{x:x,y:y,'text-anchor':anchor||'middle',class:cls||'micro'},t);
+}
+
+// stage y positions (bottom to top)
+const Y = { company:905, tags:755, facts:590, canonical:420, binding:265, verify:120 };
+const CX = W/2;
+
+// ---- root: company
+el('circle',{cx:CX,cy:Y.company,r:7,class:'dot'});
+label(CX,Y.company+30,D.company.ticker+'  ·  cik '+D.company.cik,'val');
+label(CX,Y.company+48,D.company.name+'  ·  '+D.company.sic,'micro');
+
+// ---- stage: tag chain (six candidates)
+const n = D.chain.length;
+const spread = 820, left = CX - spread/2;
+D.chain.forEach((c,i) => {
+  const x = n===1 ? CX : left + i*(spread/(n-1));
+  const live = i === 0;
+  el('path',{d:curve(CX,Y.company-8,x,Y.tags+12),class:live?'lit':'dimline'});
+  el('circle',{cx:x,cy:Y.tags,r:live?5.5:4,class:live?'dot':'dimmer'});
+  label(x,Y.tags-14,'p'+c.priority,'micro');
+  const short = c.tag.length > 22 ? c.tag.slice(0,20)+'…' : c.tag;
+  label(x,Y.tags+28,short,'micro');
+  if (!live) label(x,Y.tags+44,'not reported','micro');
+});
+
+// ---- stage: facts for the live tag
+const facts = D.facts;
+const fy = Y.facts;
+const fx = [CX-90, CX+90];
+facts.forEach((f,i) => {
+  const x = facts.length===1?CX:fx[i];
+  el('path',{d:curve(left,Y.tags-14,x,fy+12),class:i===0?'lit':'dimline'});
+  el('circle',{cx:x,cy:fy,r:5,class:i===0?'dot':'dimmer'});
+  label(x,fy-16,'$'+(f.value/1e9).toFixed(1)+'B','val');
+  label(x,fy+30,f.accession,'micro');
+  label(x,fy+46,f.form+' · filed '+f.filed,'micro');
+});
+
+// ---- canonical selection
+el('path',{d:curve(fx[0],fy-14,CX,Y.canonical+12),class:'lit'});
+el('circle',{cx:CX,cy:Y.canonical,r:7,class:'dot'});
+label(CX,Y.canonical-18,'canonical selection','micro');
+label(CX,Y.canonical+30,'tag priority 0 · latest accepted_at wins','micro');
+
+// ---- binding
+el('path',{d:curve(CX,Y.canonical-12,CX,Y.binding+12),class:'lit'});
+el('circle',{cx:CX,cy:Y.binding,r:7,class:'dot'});
+label(CX,Y.binding-18,'report binding','micro');
+label(CX,Y.binding+30,'revenue_2024  ·  fmt=money','micro');
+
+// ---- rendered number
+el('path',{d:curve(CX,Y.binding-12,CX,Y.verify+12),class:'lit'});
+el('circle',{cx:CX,cy:Y.verify,r:9,class:'nodelit'});
+label(CX,Y.verify-22,D.rendered,'val');
+label(CX,Y.verify+32,'VERIFIED PASS','micro');
+
+document.getElementById('scene').appendChild(svg);
+
+// ---- side panel
+document.getElementById('v').textContent = D.rendered;
+document.getElementById('s').textContent = D.company.ticker + ' · ' + D.metric + ' · period end ' + D.period_end;
+const rows = [
+  ['source', D.facts[0].form + ' · ' + D.facts[0].accession],
+  ['tag', D.chain[0].tag],
+  ['priority', '0 of ' + D.chain.length + ' candidates'],
+  ['candidates', D.facts.length + ' facts, ' + (D.chain.length - 1) + ' tags absent'],
+  ['accepted', D.facts[0].accepted],
+  ['query', 'SELECT value FROM _canon_rep WHERE metric_id=? AND year(end_date)=?'],
+  ['verifier', 'PASS — re-executed, matched'],
+];
+for (const [k,v] of rows) {
+  const r = document.createElement('div'); r.className='row';
+  r.innerHTML = '<div class="k">'+k+'</div><div class="v'+(k==='verifier'?' pass':'')+'">'+v+'</div>';
+  document.getElementById('rows').appendChild(r);
+}
+</script>
+</body></html>

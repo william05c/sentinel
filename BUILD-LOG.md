@@ -444,3 +444,36 @@ page are parsed from the filing at build time, not typed.
 Built with a screenshot check: headless Edge renders it, and the first screenshot showed
 a 300x150 SVG viewport with the spider stranded in the corner. Fixed by sizing the SVG
 to its container.
+
+---
+
+## Phase 4c — A correctness fix, and a number that got worse (2026-10-22)
+
+While building the provenance visualisation I traced one reported figure back through
+the warehouse and found **the same period filed under three different years**:
+
+    2023-09-30   fy=2023   $383.3B   acc 0000320193-23-000106
+    2023-09-30   fy=2024   $383.3B   acc 0000320193-24-000123
+    2023-09-30   fy=2025   $383.3B   acc 0000320193-25-000079
+
+The XBRL fiscal-year tag belongs to the **filing**, not the fact: every annual report
+restates prior-year comparatives under its own fy. Anything grouping by that column files
+a 2023 number under 2025 and misaligns every derived ratio beneath it.
+
+`pivot_annual` now keys on the period end date and keeps only annual durations and
+instants. Correct, and it invalidated the phase 4b result:
+
+| | precision@10 |
+|---|---|
+| Before the fix (misaligned years) | 0.85 |
+| After the fix (correct years) | **0.789** (15 of 19) |
+
+The 0.85 was partly luck. Reporting the lower number is the point: a metric measured on
+misaligned data is not a better metric for being higher.
+
+### Provenance visualisation
+
+`viz/provenance.html` draws the actual decision path for Apple's FY2024 revenue:
+six candidate tags, five of them never reported, two accessions carrying the same
+$391.0B, the canonical selection, the report binding, and the verification result.
+Every label is read from the warehouse.
