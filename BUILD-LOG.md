@@ -501,3 +501,17 @@ Three rendering defects were caught by screenshotting rather than by reading the
 the SVG had no intrinsic size and defaulted to 300x150, the leg control points inverted
 and drew loops through the body, and the text ran underneath the animal until the line
 padding reserved a column for it.
+
+### Phase 6c — Matching the reference composition (2026-10-22)
+
+Reworked to match the crawler aesthetic in the reference: the animal is small and
+elongated, sits **on** the prose rather than beside it, and its eight thin limbs reach
+anywhere on the page rather than only the current line. Highlights get foot markers, and
+a faint web connects the highlights to each other so the whole thing reads as a network
+rather than a pin with strings.
+
+One operational lesson: the first three renders were byte-identical because the static
+server had died and the browser was showing a cached copy. The file on disk was correct
+the whole time. Screenshots are only evidence if the bytes under them actually moved —
+so the server is now started detached, and the page is re-rendered with a fresh browser
+profile when verifying.
