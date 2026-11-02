@@ -646,3 +646,23 @@ The sentiment dictionaries are a compact subset written for this project, not th
 licensed Loughran-McDonald list. Scores are comparable **within** this warehouse over
 time and are **not** comparable with published LM scores. That is stated in the module
 docstring because it would otherwise be assumed.
+
+### Round 2 — The findings ledger (2026-11-02)
+
+**Commit:** this one · 66 tests · `sentinel findings --generate`
+
+The ledger table existed and was empty, which meant the project's central claim — "a
+growing, auditable ledger of tested observations" — was a schema with nothing in it.
+
+Now: `record()` writes a claim with its method, data references, effect size, grade,
+**falsifier** and rerun command; `retire()` moves a finding to retired with the note that
+killed it and never deletes it; `ledger()` and `summary()` read it back.
+
+The first generator turns narrative drift into findings. It runs on Apple and produces:
+
+    C  "New risk language: stock price"  effect 3.25  status new
+       falsifier: if the same phrase is used at a similar rate in the three filings
+       before the prior one, this is drift in my measure, not in the disclosure.
+
+Grade C by construction. A phrase rising year over year describes the *document*, not
+the business, and the grader refuses to call it anything stronger.

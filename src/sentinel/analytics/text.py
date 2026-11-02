@@ -114,6 +114,16 @@ def phrases(text: str, n: int = 2) -> Counter:
     return Counter(grams)
 
 
+def _tidy(phrase: str) -> str:
+    """Drop leading and trailing filler so a phrase reads as a topic, not a sentence."""
+    parts = phrase.split()
+    while parts and (parts[0] in FILLER or parts[0] in ("a", "an", "the")):
+        parts.pop(0)
+    while parts and (parts[-1] in FILLER or parts[-1] in ("a", "an", "the")):
+        parts.pop()
+    return " ".join(parts)
+
+
 def narrative_drift(current: str, prior: str, top: int = 10, n: int = 3) -> list[dict]:
     """Phrases that became prominent this year but were not last year.
 
@@ -153,6 +163,9 @@ def narrative_drift(current: str, prior: str, top: int = 10, n: int = 3) -> list
         # financial") are the same finding four times. Two shared content words is
         # enough to call them the same.
         if any(cand_words & content_of(other["phrase"]) for other in kept):
+            continue
+        candidate["phrase"] = _tidy(candidate["phrase"])
+        if not candidate["phrase"]:
             continue
         kept.append(candidate)
         if len(kept) >= top:

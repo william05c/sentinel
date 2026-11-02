@@ -296,6 +296,37 @@ def watch(days: int = typer.Option(3, help="how many days back to scan")) -> Non
 
 
 @app.command()
+def findings(
+    grade: str = typer.Option(None, help="A, B or C"),
+    generate: bool = typer.Option(False, "--generate", help="run the generators first"),
+) -> None:
+    """The findings ledger: claims with evidence, a grade and a falsifier.
+
+    Example: sentinel findings --generate
+    """
+    from sentinel.analytics import findings as ledger
+
+    paths = _paths()
+    con = db.init(paths.db)
+    if generate:
+        written = ledger.text_drift_findings(con)
+        console.print(f"generated {len(written)} findings from narrative drift")
+    console.print(str(ledger.summary(con)))
+    frame = ledger.ledger(con, grade=grade, limit=20)
+    if frame.empty:
+        console.print("ledger is empty")
+        return
+    table = Table(title="findings")
+    for column in ("grade", "title", "effect", "status", "falsifier"):
+        table.add_column(column)
+    for _, row in frame.iterrows():
+        table.add_row(str(row["grade"]), str(row["title"])[:44],
+                      f"{row['effect_size']:.2f}" if pd.notna(row["effect_size"]) else "-",
+                      str(row["status"]), str(row["falsifier"])[:40])
+    console.print(table)
+
+
+@app.command()
 def text(
     ticker: str = typer.Option(..., help="e.g. --ticker AAPL"),
     drift: bool = typer.Option(True, help="compare risk factors with the prior year"),
