@@ -66,3 +66,19 @@ like a gap is a gap; nothing is silently approximated.
   accruals are.
 - **Altman currently returns n/a** until one reparse populates current assets and
   current liabilities; the score is withheld rather than approximated.
+
+## After the improvement rounds (2026-11-02)
+
+- **Filing text covers 10-K sections only.** Items 1–15 of an annual report. 10-Q and 8-K
+  prose is not extracted, and the sentiment lists are a project subset written here, not
+  the licensed Loughran-McDonald dictionary. Scores compare within this warehouse over
+  time and are not comparable with published LM figures.
+- **One finding generator exists.** Narrative drift, grade C. The ledger, its grading and
+  its retirement are real; the supply of findings is not yet.
+- **The dashboard is static.** It reflects the warehouse at the moment `sentinel
+  dashboard` ran. There is no auto-refresh and no interaction beyond links.
+- **Twelve of thirteen report types are still unbuilt** (peers, screening, correlation,
+  importance, events, ownership, forecast, data quality, watchlist, capital allocation).
+  The dossier is the only one with a template.
+- **658 index tickers remain unresolved** to a CIK; they are renamed or dead and would
+  need name-based matching against EDGAR full-text search.

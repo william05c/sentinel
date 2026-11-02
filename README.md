@@ -29,9 +29,10 @@ $391.0B, and the verification result.*
 | 3 — Dictionary and golden set | done | 64 metrics, 1,684 values reconciled against SEC, **100.0%** |
 | 4 — Analytics | partial | peer precision@10 **0.789**; quality scores; importance **blocked on prices** |
 | 6 — The watch | done | daily-index change detection, 8-K item scoring, quiet-by-default digest |
-| 5, 7 — Forecast, dashboard | not started | forecast blocked on price data; dashboard unbuilt |
+| 7 — Dashboard | done | one page over the warehouse, 707 companies, served locally |
+| 5 — Forecast | blocked | needs a price feed; nothing substituted |
 
-Current warehouse: **4.59M XBRL facts**, **515k filings**, **1.87M canonical rows**.
+Current warehouse: **4.59M XBRL facts**, **738k filings**, **1.87M canonical rows**, 72 tests, CI green on four legs.
 
 ## Quickstart (Windows)
 
