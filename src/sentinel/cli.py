@@ -247,10 +247,15 @@ def watch(days: int = typer.Option(3, help="how many days back to scan")) -> Non
     # Digest the most recent day that actually produced events. Digesting "today" when
     # the index for today is not yet published reports a quiet day that never happened.
     latest = con.execute("SELECT MAX(digest_date) FROM watch_event").fetchone()[0]
+    rescored = watch_mod.rescore(con)
     d = watch_mod.digest(con, day=latest or today)
     md, js = watch_mod.write(con, paths, d)
+    if stats["failures"]:
+        console.print("[yellow]index unavailable:[/yellow] " + "; ".join(stats["failures"][:3]))
     console.print(f"days fetched {stats['days_fetched']}/{stats['days_requested']} · "
-                  f"new events {stats['new_events']}")
+                  f"new events {stats['new_events']} · "
+                  f"events {rescored['events']:,} surfaced {rescored['surfaced']:,} "
+                  f"rescored {rescored['changed']:,}")
     console.print(watch_mod.render(d).strip()[:900])
     console.print(f"written {md}")
 

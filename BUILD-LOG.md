@@ -515,3 +515,26 @@ server had died and the browser was showing a cached copy. The file on disk was 
 the whole time. Screenshots are only evidence if the bytes under them actually moved —
 so the server is now started detached, and the page is re-rendered with a fresh browser
 profile when verifying.
+
+### Phase 6d — 8-K item scoring (2026-11-02)
+
+Every 8-K scored 0.60, so the digest was twenty-five near-identical "current report"
+lines. The item codes were already stored on `fact_filing`; they just were not used.
+
+Now:
+
+    5.02 officer or director change          0.75
+    1.01 material definitive agreement       0.70
+    2.02 results of operations               0.62
+    9.01 financial statements and exhibits   0.15   -> suppressed
+
+Surfaced events fell from 332 to **107** and the suppressed count rose to 1,018. The
+digest got shorter because it got smarter, which is the only acceptable reason for it
+to change length.
+
+Two failures on the way, both of the same family:
+
+* the SEC daily index began returning **403** — a real block, now printed as
+  `index unavailable` with the failing URLs instead of a silent `0/2 days`.
+* `rescore` crashed on `items` being NaN for events whose filing metadata had not been
+  ingested. A LEFT JOIN produces NaN, and NaN is a float, not a string.

@@ -85,3 +85,19 @@ def test_digest_surfaces_and_suppresses():
     # idempotent: re-recording the same filings must not duplicate events
     db.replace_rows(con, "watch_event", rows, ["accession", "event_class"])
     assert db.scalar(con, "SELECT COUNT(*) FROM watch_event") == 2
+
+
+def test_8k_items_drive_materiality():
+    """A non-reliance notice and a results release are both 8-Ks. They are not equals."""
+    from sentinel.watch import score, score_items
+    assert score_items("8-K", "2.02,9.01")[0] == 0.62
+    assert "results of operations" in score_items("8-K", "2.02,9.01")[1]
+    assert score_items("8-K", "4.02")[0] > 0.95
+    assert "non-reliance" in score_items("8-K", "4.02")[1]
+    # the highest-weight item wins, not the first
+    assert score_items("8-K", "9.01,4.02,2.02")[0] > 0.95
+    # no items published yet: fall back to the form, not to zero
+    assert score_items("8-K", None) == score("8-K")
+    assert score_items("8-K", "") == score("8-K")
+    # an unknown code must not silently score as important
+    assert score_items("8-K", "1.99")[0] == score("8-K")[0]
