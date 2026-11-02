@@ -685,3 +685,13 @@ deleted:
     f-9ab528b7bfc520                     retired  New risk language: and stock price
 
 The system can now show something it believed and then stopped believing.
+
+### Round 4 — Tests for the thing that was wrong (2026-11-02)
+
+**Commit:** this one · 71 tests
+
+Peer matching shipped once at precision@10 of 0.0 with no test that could have noticed.
+Five properties are now asserted: the list is ordered by similarity, a company never
+appears as its own peer, same-industry outranks other-industry, vectors with too few
+observed features are excluded, and an unknown company raises instead of returning an
+empty frame that would look like "no peers found".
