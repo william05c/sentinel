@@ -29,7 +29,7 @@ $391.0B, and the verification result.*
 | 3 — Dictionary and golden set | done | 64 metrics, 1,684 values reconciled against SEC, **100.0%** |
 | 4 — Analytics | partial | peer precision@10 **0.789**; quality scores; importance **blocked on prices** |
 | 6 — The watch | done | daily-index change detection, 8-K item scoring, quiet-by-default digest |
-| 5, 7 — Forecast, reports, dashboard | not started | blocked on price data / not built |
+| 5, 7 — Forecast, dashboard | not started | forecast blocked on price data; dashboard unbuilt |
 
 Current warehouse: **4.59M XBRL facts**, **515k filings**, **1.87M canonical rows**.
 
@@ -76,6 +76,8 @@ The SEC requires a declared contact address in the User-Agent. Set
 - Detect what changed via the SEC daily index, score materiality, and stay silent when
   nothing did.
 - Reconcile its own numbers against SEC's independently-served concept endpoint.
+- Emit every report as markdown, HTML, CSV, JSON and a ZIP bundle, each with a content
+  hash in the downloads index.
 
 ## What it cannot do
 

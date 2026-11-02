@@ -538,3 +538,19 @@ Two failures on the way, both of the same family:
   `index unavailable` with the failing URLs instead of a silent `0/2 days`.
 * `rescore` crashed on `items` being NaN for events whose filing metadata had not been
   ingested. A LEFT JOIN produces NaN, and NaN is a float, not a string.
+
+### Phase 7a — Reports you can take away (2026-11-02)
+
+Every report now emits seven artefacts instead of four: markdown, HTML, the binding
+table, provenance, a values JSON, the evidence rows as CSV, and a ZIP containing all of
+them. `sentinel downloads` lists every artefact with size and SHA-256.
+
+    > sentinel verify .../2026-11-02_dossier_AAPL.md
+    verification: PASS (71/71)
+
+    > sentinel downloads
+    2026-11-02_dossier_AAPL.zip    27.6 KB  c6e78ddc66ed
+    2026-11-02_dossier_AAPL.canonical.csv  168.4 KB  ae7517a80634
+
+The CSV is the point: it is the evidence behind the numbers, in a form that can be
+pivoted without the software. A report that only exists on screen is not a deliverable.

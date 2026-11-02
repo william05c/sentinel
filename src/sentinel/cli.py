@@ -229,6 +229,30 @@ def restatements(limit: int = typer.Option(10, help="rows to show")) -> None:
 
 
 @app.command()
+def downloads(limit: int = typer.Option(20, help="how many artefacts to list")) -> None:
+    """List every generated artefact with its size and content hash.
+
+    Example: sentinel downloads
+    """
+    from sentinel.reports.render import file_sha256
+
+    paths = _paths()
+    files = sorted(
+        (f for root in paths.reports.glob("*") if root.is_dir() for f in root.iterdir() if f.is_file()),
+        key=lambda f: f.stat().st_mtime,
+        reverse=True,
+    )[:limit]
+    table = Table(title="downloads")
+    for column in ("file", "size", "sha256", "modified"):
+        table.add_column(column)
+    for f in files:
+        table.add_row(f.name, f"{f.stat().st_size/1024:,.1f} KB", file_sha256(f)[:12],
+                      datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M"))
+    console.print(table)
+    console.print(f"{len(files)} shown · directory {paths.reports}")
+
+
+@app.command()
 def watch(days: int = typer.Option(3, help="how many days back to scan")) -> None:
     """Scan the SEC daily index and write a digest. Quiet when nothing material happened.
 

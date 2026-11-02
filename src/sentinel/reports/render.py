@@ -15,8 +15,10 @@ If a number cannot be produced this way, it does not belong in the report.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import zipfile
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -153,9 +155,16 @@ def write_artifacts(
     html: str,
     bindings: dict[str, dict],
     provenance: dict,
+    tables: dict[str, "object"] | None = None,
 ) -> dict[str, Path]:
+    """Write every takeaway format, then bundle them.
+
+    A report that only exists on screen is not a deliverable. Markdown for diffing,
+    HTML for reading offline, CSV for the evidence rows, JSON for the machine, and one
+    ZIP so it can be taken away in a single click.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
-    paths = {
+    paths: dict[str, Path] = {
         "markdown": out_dir / (stem + ".md"),
         "html": out_dir / (stem + ".html"),
         "bindings": out_dir / (stem + ".bindings.json"),
@@ -165,4 +174,32 @@ def write_artifacts(
     paths["html"].write_text(html, encoding="utf-8")
     paths["bindings"].write_text(json.dumps(bindings, indent=1, default=str), encoding="utf-8")
     paths["provenance"].write_text(json.dumps(provenance, indent=1, default=str), encoding="utf-8")
+
+    # the numbers alone, for a spreadsheet
+    paths["values"] = out_dir / (stem + ".values.json")
+    paths["values"].write_text(
+        json.dumps({k: v.get("rendered") for k, v in bindings.items()}, indent=1), encoding="utf-8"
+    )
+
+    for name, frame in (tables or {}).items():
+        csv_path = out_dir / (stem + "." + name + ".csv")
+        try:
+            frame.to_csv(csv_path, index=False)
+            paths["table_" + name] = csv_path
+        except Exception:
+            pass  # a table that cannot be written must not lose the report
+
+    bundle = out_dir / (stem + ".zip")
+    with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in paths.values():
+            zf.write(path, arcname=path.name)
+    paths["bundle"] = bundle
     return paths
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

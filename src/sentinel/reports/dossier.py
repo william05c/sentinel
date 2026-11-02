@@ -235,6 +235,8 @@ def build(con, paths, cik: int, *, as_of: datetime | None = None, years: int = 5
         html=html,
         bindings=binder.values(),
         provenance=provenance,
+        tables={"canonical": frame[["metric_id", "period_type", "start_date", "end_date",
+                                   "value", "unit", "tag_used", "accession"]]},
     )
     context.close_context(con)
 
