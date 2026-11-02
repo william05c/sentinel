@@ -25,6 +25,8 @@ def connect(db_path: Path | str = ":memory:", *, read_only: bool = False) -> duc
 
 MIGRATIONS = [
     "ALTER TABLE dim_index_membership ADD COLUMN IF NOT EXISTS ticker VARCHAR",
+    "ALTER TABLE dim_document_section ADD COLUMN IF NOT EXISTS litigious DOUBLE",
+    "ALTER TABLE dim_document_section ADD COLUMN IF NOT EXISTS constraining DOUBLE",
 ]
 
 

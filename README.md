@@ -78,14 +78,16 @@ The SEC requires a declared contact address in the User-Agent. Set
 - Reconcile its own numbers against SEC's independently-served concept endpoint.
 - Emit every report as markdown, HTML, CSV, JSON and a ZIP bundle, each with a content
   hash in the downloads index.
+- Split a 10-K into its Item sections, score tone and readability, and diff the risk
+  factors against the prior year.
 
 ## What it cannot do
 
 - **No prices.** Stooq serves a JavaScript challenge and Yahoo returns 429 from this
   machine. Without returns there is no correlation, no importance ranking, no event study
   and no forecast. Nothing was substituted for them.
-- **No filing text in the warehouse.** Text extraction is Phase 3b; the visualisation
-  parses one document directly.
+- **Text covers 10-K sections only** (Items 1–15). 10-Q and 8-K prose is not extracted,
+  and the sentiment lists are a project subset, not the licensed LM dictionary.
 - **8-Ks score by form, not by item.** A results release and a non-reliance notice weigh
   the same today.
 - 658 index tickers never resolved to a CIK (renamed or dead) and are excluded.

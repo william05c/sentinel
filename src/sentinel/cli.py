@@ -296,6 +296,64 @@ def watch(days: int = typer.Option(3, help="how many days back to scan")) -> Non
 
 
 @app.command()
+def text(
+    ticker: str = typer.Option(..., help="e.g. --ticker AAPL"),
+    drift: bool = typer.Option(True, help="compare risk factors with the prior year"),
+) -> None:
+    """Extract a filing's sections, score their tone, and show what changed.
+
+    Example: sentinel text --ticker AAPL
+    """
+    from sentinel import document
+    from sentinel.adapters import filing_text
+    from sentinel.analytics import text as text_mod
+
+    paths = _paths()
+    con = db.init(paths.db)
+    cik = _resolve_cik(con, paths, ticker, None)
+    with _fetcher(paths) as fetcher:
+        current = document.ingest_sections(con, fetcher, cik)
+        table = Table(title=f"sections for {ticker.upper()} ({current['accession']})")
+        for column in ("item", "section", "chars", "neg/1k", "unc/1k", "fog"):
+            table.add_column(column)
+        rows = db.query(con, "SELECT * FROM dim_document_section WHERE accession = ? ORDER BY section_id",
+                        [current["accession"]])
+        for _, row in rows.iterrows():
+            table.add_row(str(row["section_id"]), str(row["section_name"])[:34],
+                          f"{int(row['char_count']):,}", f"{row['sentiment_neg']:.1f}",
+                          f"{row['sentiment_unc']:.1f}", f"{row['fog_index']:.1f}")
+        console.print(table)
+
+        if not drift:
+            return
+        filings = db.query(
+            con,
+            "SELECT accession, filed_date FROM fact_filing WHERE cik = ? AND form_type = '10-K' "
+            "ORDER BY filed_date DESC LIMIT 2", [cik],
+        )
+        if len(filings) < 2:
+            console.print("need two annual reports to measure drift")
+            return
+        prior_accession = filings.iloc[1]["accession"]
+        document.ingest_sections(con, fetcher, cik, accession=prior_accession)
+        item = "1A" if document.section_text(con, current["accession"], "1A") else "7"
+        now_text = document.section_text(con, current["accession"], item) or ""
+        then_text = document.section_text(con, prior_accession, item) or ""
+        if not now_text or not then_text:
+            console.print(f"no Item {item} in both filings")
+            return
+        drift_rows = text_mod.narrative_drift(now_text, then_text, top=8)
+        console.print(f"Item {item} drift · boilerplate {text_mod.boilerplate_ratio(now_text, then_text)*100:.1f}% "
+                      f"repeated verbatim")
+        drift_table = Table(title="new language")
+        for column in ("phrase", "now/1k", "before/1k", "rise"):
+            drift_table.add_column(column)
+        for item_row in drift_rows:
+            drift_table.add_row(item_row["phrase"], str(item_row["now"]), str(item_row["before"]), str(item_row["rise"]))
+        console.print(drift_table)
+
+
+@app.command()
 def peers(ticker: str = typer.Option(..., help="e.g. --ticker AAPL"), k: int = typer.Option(10)) -> None:
     """Nearest companies by fingerprint similarity.
 

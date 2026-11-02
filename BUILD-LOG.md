@@ -604,3 +604,45 @@ permitted). Live fetch after the change: 200, 797,604 bytes.
 
 54 tests, including a mocked transport that proves a disallowed path is never requested,
 that an unreachable robots blocks everything, and that a 304 is served from cache.
+
+---
+
+## Round 1 — Filing text (2026-11-02)
+
+**Commit:** this one · 62 tests · `sentinel text --ticker AAPL`
+
+The prose was the largest unused asset in the warehouse: 515k filings downloaded, none
+of their text ever read. Now a filing is split on its Item headings, each section scored
+for tone and readability, and the risk factors diffed against the prior year.
+
+Apple FY2025, twelve sections extracted:
+
+| Item | Section | chars | neg/1k | fog |
+|---|---|---:|---:|---:|
+| 1A | Risk Factors | 67,535 | 30.9 | 23.4 |
+| 7 | MD&A | 16,733 | 7.7 | 18.2 |
+| 8 | Financial Statements | 66,036 | 8.4 | 21.8 |
+
+Risk factors run at four times the negative-word density of MD&A, which is the kind of
+check that tells you the measure is working rather than producing noise.
+
+Item 1A drift: **71% of the language is repeated verbatim** year over year; the new
+material is about stock price volatility and financing conditions.
+
+### Three defects found while building it
+
+1. **Short headings were discarded.** The extractor kept blocks over 40 characters, so
+   "Item 1A. Risk Factors" was dropped as furniture and the entire section vanished with
+   it. The most useful section in the document, silently absent.
+2. **Drift was dominated by filler.** "due to", "and other", "primarily due" topped every
+   list because they are the most common trigrams in English. Filler-only phrases are now
+   excluded, and a phrase sharing any content word with a stronger one is suppressed.
+3. **A local variable shadowed the `words()` function** in the same scope, which Python
+   allows and then fails on at the earlier call site.
+
+### Honest scope note
+
+The sentiment dictionaries are a compact subset written for this project, not the
+licensed Loughran-McDonald list. Scores are comparable **within** this warehouse over
+time and are **not** comparable with published LM scores. That is stated in the module
+docstring because it would otherwise be assumed.
