@@ -29,6 +29,7 @@ from urllib.parse import urlparse
 import httpx
 
 from sentinel.config import Defaults, Identity, Paths, SourceSpec, source_for_host
+from sentinel.crawler import robots as robots_mod
 
 RETRY_STATUSES = {403, 408, 429, 500, 502, 503, 504}
 
@@ -86,7 +87,7 @@ class RateLimiter:
         self._sleep = sleeper
         self._hosts: dict[str, _HostState] = {}
 
-    def acquire(self, host: str, spec: SourceSpec | None) -> None:
+    def acquire(self, host: str, spec: SourceSpec | None, factor: float = 1.0) -> None:
         state = self._hosts.setdefault(host, _HostState())
         now = self._clock()
         if state.open_until > now:
@@ -95,7 +96,7 @@ class RateLimiter:
         if spec is None or spec.requests_per_second <= 0:
             interval = 1.0
         else:
-            interval = 1.0 / spec.requests_per_second
+            interval = (1.0 / spec.requests_per_second) * factor
         wait = state.last_request + interval - now
         if wait > 0:
             self._sleep(wait)
@@ -110,6 +111,51 @@ class RateLimiter:
         state.consecutive_failures += 1
         if state.consecutive_failures >= threshold:
             state.open_until = self._clock() + cooldown_s
+
+
+class Budget:
+    """A per-day ceiling on requests and bytes, per source.
+
+    A crawler with no ceiling is one bug away from a denial of service it authored. The
+    counter is persisted so a restart does not silently reset the allowance.
+    """
+
+    def __init__(self, path: Path):
+        self.path = path
+        self._state = self._load()
+
+    def _today(self) -> str:
+        return utcnow().date().isoformat()
+
+    def _load(self) -> dict:
+        try:
+            state = json.loads(self.path.read_text(encoding="utf-8"))
+            if state.get("date") == self._today():
+                return state
+        except Exception:
+            pass
+        return {"date": self._today(), "requests": {}, "bytes": {}}
+
+    def _save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self._state), encoding="utf-8")
+        tmp.replace(self.path)
+
+    def check(self, source: str, spec: SourceSpec | None) -> None:
+        if spec is None:
+            return
+        used_r = self._state["requests"].get(source, 0)
+        used_b = self._state["bytes"].get(source, 0)
+        if used_r >= spec.max_requests_per_day:
+            raise SourceError("budget", None, f"daily request budget exhausted for {source} ({used_r})")
+        if used_b >= spec.max_bytes_per_day:
+            raise SourceError("budget", None, f"daily byte budget exhausted for {source} ({used_b})")
+
+    def record(self, source: str, size: int) -> None:
+        self._state["requests"][source] = self._state["requests"].get(source, 0) + 1
+        self._state["bytes"][source] = self._state["bytes"].get(source, 0) + size
+        self._save()
 
 
 class RawStore:
@@ -140,7 +186,8 @@ class RawStore:
         with gzip.open(path, "rb") as fh:
             return fh.read()
 
-    def write(self, url: str, content: bytes, status: int, content_type: str) -> str:
+    def write(self, url: str, content: bytes, status: int, content_type: str,
+              etag: str | None = None, last_modified: str | None = None) -> str:
         sha = hashlib.sha256(content).hexdigest()
         path = self.paths.raw / sha[:2] / f"{sha}.gz"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,9 +200,23 @@ class RawStore:
             "status": status,
             "content_type": content_type,
             "bytes": len(content),
+            # kept for conditional requests: a 304 costs one round trip, not a download
+            "etag": etag,
+            "last_modified": last_modified,
         }
         self.flush()
         return sha
+
+    def touch(self, url: str, etag: str | None = None, last_modified: str | None = None) -> None:
+        entry = self._index.get(url)
+        if not entry:
+            return
+        entry["fetched_at"] = utcnow().isoformat()
+        if etag:
+            entry["etag"] = etag
+        if last_modified:
+            entry["last_modified"] = last_modified
+        self.flush()
 
     def flush(self) -> None:
         self.paths.cache_index.parent.mkdir(parents=True, exist_ok=True)
@@ -187,7 +248,25 @@ class HttpFetcher:
             transport=transport,
             headers={"User-Agent": identity.header, "Accept-Encoding": "gzip, deflate"},
         )
+        self._robots: dict[str, robots_mod.RobotsPolicy] = {}
+        self._delay_factor: dict[str, float] = {}
+        self.budget = Budget(paths.data / "crawl_budget.json")
         self._logger = logger or self._default_log
+
+    def _robots_for(self, host: str) -> robots_mod.RobotsPolicy:
+        """Cached per host for at most 24 hours, per RFC 9309 2.4."""
+        cached = self._robots.get(host)
+        if cached is not None and not cached.stale():
+            return cached
+        product = self.identity.user_agent.split("/")[0]
+        try:
+            response = self._client.get("https://" + host + "/robots.txt")
+            policy = robots_mod.for_status(response.status_code, response.text, product)
+        except httpx.HTTPError:
+            # unreachable means undefined, which means assume complete disallow
+            policy = robots_mod.for_status(590, None, product)
+        self._robots[host] = policy
+        return policy
 
     def _default_log(self, record: dict) -> None:
         self.paths.crawl_log.parent.mkdir(parents=True, exist_ok=True)
@@ -212,22 +291,42 @@ class HttpFetcher:
         ttl = spec.cache_ttl_s if ttl_s is None else ttl_s
 
         if allow_cache and ttl > 0 and self.store.is_fresh(url, ttl):
-            entry = self.store.lookup(url)
-            assert entry is not None
-            content = self.store.read(entry["sha256"])
-            self._logger({"ts": utcnow().isoformat(), "url": url, "status": entry.get("status", 200),
-                          "bytes": len(content), "ms": 0, "attempt": 0, "cache_hit": True,
-                          "user_agent": self.identity.header})
-            return FetchResult(url, int(entry.get("status", 200)), content, entry["sha256"],
-                               datetime.fromisoformat(entry["fetched_at"]), True,
-                               entry.get("content_type", ""), 0)
+            return self._from_cache(url)
+
+        # Robots first: a disallowed path is not fetched at all, and the check is cached
+        # per host so it costs one request per day.
+        is_robots = parsed.path == "/robots.txt"
+        if not is_robots:
+            policy = self._robots_for(host)
+            if not policy.allowed(parsed.path or "/"):
+                raise SourceError(url, None, "disallowed by robots.txt")
+            if policy.crawl_delay and spec is not None:
+                ttl = ttl  # crawl-delay is applied through the limiter factor below
+
+        if spec is not None:
+            self.budget.check(spec.name, spec)
+
+        entry = self.store.lookup(url)
+        conditional = {}
+        if allow_cache and entry:
+            if entry.get("etag"):
+                conditional["If-None-Match"] = entry["etag"]
+            if entry.get("last_modified"):
+                conditional["If-Modified-Since"] = entry["last_modified"]
+
+        factor = self._delay_factor.get(host, 1.0)
+        if not is_robots:
+            policy = self._robots.get(host)
+            if policy is not None and policy.crawl_delay:
+                configured = 1.0 / (spec.requests_per_second if spec else 1.0)
+                factor = max(factor, policy.crawl_delay / max(configured, 1e-6))
 
         last_error: Exception | None = None
         for attempt in range(1, self.defaults.max_retries + 1):
-            self.limiter.acquire(host, spec)
+            self.limiter.acquire(host, spec, factor)
             started = time.perf_counter()
             try:
-                response = self._client.get(url)
+                response = self._client.get(url, headers=conditional)
             except httpx.HTTPError as exc:  # network-level failure
                 last_error = exc
                 self.limiter.note_failure(host)
@@ -238,11 +337,22 @@ class HttpFetcher:
             self._logger({"ts": utcnow().isoformat(), "url": url, "status": response.status_code,
                           "bytes": len(response.content), "ms": elapsed_ms, "attempt": attempt,
                           "cache_hit": False, "user_agent": self.identity.header})
+            if spec is not None:
+                self.budget.record(spec.name, len(response.content))
+
+            # 304 means our copy is still current: refresh its timestamp, do not re-read.
+            if response.status_code == 304 and entry:
+                self.store.touch(url, entry.get("etag"), entry.get("last_modified"))
+                self._ease(host)
+                return self._from_cache(url)
 
             if response.status_code < 400:
                 sha = self.store.write(url, response.content, response.status_code,
-                                       response.headers.get("content-type", ""))
+                                       response.headers.get("content-type", ""),
+                                       etag=response.headers.get("ETag"),
+                                       last_modified=response.headers.get("Last-Modified"))
                 self.limiter.note_success(host)
+                self._ease(host)
                 return FetchResult(url, response.status_code, response.content, sha, utcnow(),
                                    False, response.headers.get("content-type", ""), elapsed_ms)
 
@@ -251,9 +361,28 @@ class HttpFetcher:
 
             last_error = SourceError(url, response.status_code, "retryable HTTP status")
             self.limiter.note_failure(host)
+            self._tighten(host)
             self._sleep_backoff(attempt, retry_after=response.headers.get("Retry-After"))
 
         raise SourceError(url, None, f"exhausted {self.defaults.max_retries} attempts: {last_error}")
+
+    def _from_cache(self, url: str) -> FetchResult:
+        entry = self.store.lookup(url)
+        assert entry is not None
+        content = self.store.read(entry["sha256"])
+        self._logger({"ts": utcnow().isoformat(), "url": url, "status": entry.get("status", 200),
+                      "bytes": len(content), "ms": 0, "attempt": 0, "cache_hit": True,
+                      "user_agent": self.identity.header})
+        return FetchResult(url, int(entry.get("status", 200)), content, entry["sha256"],
+                           datetime.fromisoformat(entry["fetched_at"]), True,
+                           entry.get("content_type", ""), 0)
+
+    def _tighten(self, host: str) -> None:
+        """A refusal is information: slow down until the host stops objecting."""
+        self._delay_factor[host] = min(8.0, self._delay_factor.get(host, 1.0) * 1.6)
+
+    def _ease(self, host: str) -> None:
+        self._delay_factor[host] = max(1.0, self._delay_factor.get(host, 1.0) * 0.85)
 
     def _sleep_backoff(self, attempt: int, retry_after: str | None = None) -> None:
         if retry_after:

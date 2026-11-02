@@ -107,6 +107,9 @@ class SourceSpec:
     license: str
     enabled: bool
     description: str = ""
+    # A crawler without ceilings is one bug away from being a denial of service.
+    max_requests_per_day: int = 5000
+    max_bytes_per_day: int = 5 * 1024 ** 3
 
 
 @dataclass(frozen=True)
@@ -139,6 +142,8 @@ def sources_config() -> tuple[dict[str, SourceSpec], Defaults]:
             license=str(raw.get("license", "")),
             enabled=bool(raw.get("enabled", False)),
             description=str(raw.get("description", "")),
+            max_requests_per_day=int(raw.get("max_requests_per_day", 5000)),
+            max_bytes_per_day=int(raw.get("max_bytes_per_day", 5 * 1024 ** 3)),
         )
         specs[name] = spec
         for h in spec.hosts:

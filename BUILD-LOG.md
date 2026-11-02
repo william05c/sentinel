@@ -578,3 +578,29 @@ full one, and the document now makes that distinction instead of hiding it.
 
 Also fixed: the digest date was computed before the fallback ran, so newly found filings
 were written but never shown.
+
+### Phase 6f — The crawler, held to RFC 9309 (2026-11-02)
+
+Research note in [docs/CRAWLER_RESEARCH.md](docs/CRAWLER_RESEARCH.md). The finding that
+mattered: **robots.txt was never read**. The README claimed the crawler obeys robots;
+the code did not. That is a compliance claim the project was making and not keeping.
+
+Added:
+
+* `crawler/robots.py` — RFC 9309 parser: longest match, `*` and `$` wildcards, the most
+  specific user-agent group wins rather than merging with `*`, tolerant parsing, 500 KiB
+  limit, 24-hour cache.
+* **Status semantics**: 4xx means no rules (permitted), 5xx or unreachable means
+  **complete disallow**. The second is the one nearly every crawler gets backwards, and
+  it fails precisely when a site is already unwell.
+* Conditional requests: ETag / If-Modified-Since, with 304 answered from the cache
+  instead of an empty body.
+* A persisted daily budget per source, so a bug cannot become a denial of service.
+* Adaptive delay: multiply on 429/5xx, decay on success.
+
+Checked against the real host rather than assumed: SEC allows `/Archives/edgar/data`,
+does not restrict the index paths, and `data.sec.gov` has no robots.txt at all (404, so
+permitted). Live fetch after the change: 200, 797,604 bytes.
+
+54 tests, including a mocked transport that proves a disallowed path is never requested,
+that an unreachable robots blocks everything, and that a 304 is served from cache.
