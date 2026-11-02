@@ -1,0 +1,34 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>SENTINEL — dashboard</title>
+<style>
+ :root{--bg:#070a0e;--panel:#0d141c;--line:#18222e;--ink:#a8bccf;--dim:#5f7284;--lit:#eaf4ff;--ok:#3ddc97}
+ *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);
+   font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;padding:26px}
+ h1{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--lit);margin:0 0 4px}
+ .sub{color:var(--dim);font-size:11px;margin-bottom:20px}
+ .cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+ .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 16px;min-width:120px}
+ .card .k{color:var(--dim);font-size:9px;letter-spacing:.14em;text-transform:uppercase}
+ .card .v{color:var(--lit);font-size:20px}
+ section{margin-bottom:26px}
+ h2{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+   border-bottom:1px solid var(--line);padding-bottom:6px;margin:0 0 10px}
+ table{width:100%;border-collapse:collapse}
+ th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #111a23;font-size:12px}
+ th{color:var(--dim);font-weight:500;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+ td.n{text-align:right;font-variant-numeric:tabular-nums}
+ .grade{color:var(--ok);font-weight:600}
+ a{color:var(--ok);text-decoration:none}
+ footer{color:var(--dim);font-size:10px;border-top:1px solid var(--line);padding-top:12px}
+</style></head><body>
+<h1>SENTINEL — dashboard</h1>
+<div class="sub">generated 2026-11-02 13:46 UTC · latest digest 2026-11-02 ·
+ <a href="/crawler.html">crawler view</a> · <a href="/provenance.html">provenance</a></div>
+<div class="cards"><div class="card"><div class="k">companies</div><div class="v">707</div></div><div class="card"><div class="k">filings</div><div class="v">737,744</div></div><div class="card"><div class="k">xbrl facts</div><div class="v">4,586,395</div></div><div class="card"><div class="k">canonical</div><div class="v">1,873,494</div></div><div class="card"><div class="k">sections</div><div class="v">25</div></div><div class="card"><div class="k">events</div><div class="v">1,189</div></div><div class="card"><div class="k">findings</div><div class="v">2</div></div></div>
+<section><h2>Metric coverage</h2><table><thead><tr><th>metric</th><th>companies</th><th>share</th></tr></thead><tbody><tr><td>assets</td><td class="n">688</td><td class="n">97.3%</td></tr><tr><td>capex</td><td class="n">641</td><td class="n">90.7%</td></tr><tr><td>cfo</td><td class="n">688</td><td class="n">97.3%</td></tr><tr><td>equity</td><td class="n">686</td><td class="n">97.0%</td></tr><tr><td>gross_profit</td><td class="n">357</td><td class="n">50.5%</td></tr><tr><td>net_income</td><td class="n">688</td><td class="n">97.3%</td></tr><tr><td>operating_income</td><td class="n">579</td><td class="n">81.9%</td></tr><tr><td>revenue</td><td class="n">680</td><td class="n">96.2%</td></tr></tbody></table></section>
+<section><h2>Data quality</h2><table><thead><tr><th>check</th><th>severity</th><th>detail</th></tr></thead><tbody><tr><td>orphan_facts_in_window</td><td class="n">error</td><td class="n">144 rows</td></tr><tr><td>coverage_accounts_payable</td><td class="n">info</td><td class="n">347/480 companies (72.3%)</td></tr><tr><td>coverage_accrued_liabilities</td><td class="n">info</td><td class="n">241/480 companies (50.2%)</td></tr><tr><td>coverage_acquisitions_cash</td><td class="n">info</td><td class="n">385/480 companies (80.2%)</td></tr><tr><td>coverage_advertising_expense</td><td class="n">info</td><td class="n">183/480 companies (38.1%)</td></tr><tr><td>coverage_allowances_doubtful</td><td class="n">info</td><td class="n">321/480 companies (66.9%)</td></tr><tr><td>coverage_assets</td><td class="n">info</td><td class="n">478/480 companies (99.6%)</td></tr><tr><td>coverage_buybacks</td><td class="n">info</td><td class="n">433/480 companies (90.2%)</td></tr><tr><td>coverage_capex</td><td class="n">info</td><td class="n">445/480 companies (92.7%)</td></tr><tr><td>coverage_cash</td><td class="n">info</td><td class="n">477/480 companies (99.4%)</td></tr><tr><td>coverage_cff</td><td class="n">info</td><td class="n">477/480 companies (99.4%)</td></tr><tr><td>coverage_cfi</td><td class="n">info</td><td class="n">477/480 companies (99.4%)</td></tr></tbody></table></section>
+<section><h2>Findings ledger</h2><table><thead><tr><th>grade</th><th>title</th><th>effect</th><th>status</th></tr></thead><tbody><tr><td>C</td><td class="n">New risk language: stock price</td><td class="n">3.25</td><td class="n">new</td></tr><tr><td>C</td><td class="n">New risk language: and stock price</td><td class="n">3.25</td><td class="n">retired</td></tr></tbody></table></section>
+<section><h2>Latest surfaced filings</h2><table><thead><tr><th>form</th><th>company</th><th>why</th><th>weight</th></tr></thead><tbody><tr><td>8-K</td><td class="n">DEERE & CO</td><td class="n">current report</td><td class="n">0.60</td></tr></tbody></table></section>
+<section><h2>Recent artefacts</h2><table><thead><tr><th>kind</th><th>subject</th><th>as of</th></tr></thead><tbody><tr><td>dossier</td><td class="n">AAPL</td><td class="n">2026-11-02 00:00:00</td></tr><tr><td>dossier</td><td class="n">AAPL</td><td class="n">2020-01-01 00:00:00</td></tr><tr><td>dossier</td><td class="n">AAPL</td><td class="n">2026-10-21 00:00:00</td></tr></tbody></table></section>
+<footer>Research output generated from public data. Not investment advice.</footer>
+</body></html>

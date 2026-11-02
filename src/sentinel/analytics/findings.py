@@ -34,6 +34,7 @@ def record(
     con,
     *,
     title: str,
+    key: str | None = None,
     claim: str,
     entities: str,
     method: str,
@@ -47,8 +48,13 @@ def record(
     stability: str = "",
     status: str = "new",
 ) -> str:
-    """Write one finding. Re-running produces the same id, so re-derivation is idempotent."""
-    fid = finding_id(title, entities, sample_period)
+    """Write one finding. Re-running produces the same id, so re-derivation is idempotent.
+
+    The id comes from a stable key when one is supplied, not from the title. A title is a
+    sentence a human may reword; keying on it means rewording creates a duplicate finding
+    instead of updating the one it describes.
+    """
+    fid = key or finding_id(title, entities, sample_period)
     row = {
         "finding_id": fid,
         "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
@@ -140,6 +146,7 @@ def text_drift_findings(con, *, limit: int = 40) -> list[str]:
         title = "New risk language: " + top["phrase"]
         written.append(record(
             con,
+            key="drift-1A-" + str(int(cik)) + "-" + str(newest["accession"]),
             title=title,
             claim=("Between " + str(prior["filed_date"]) + " and " + str(newest["filed_date"])
                    + ", " + top["phrase"] + " rose from " + str(top["before"]) + " to "

@@ -47,7 +47,9 @@ Current warehouse: **4.59M XBRL facts**, **515k filings**, **1.87M canonical row
 
 The visualisations need a server (`file://` blocks the data fetch):
 
+    sentinel dashboard                      # writes viz/dashboard.html
     python scripts/serve_viz.py 8777
+    # http://127.0.0.1:8777/dashboard.html   one page over the whole warehouse
     # http://127.0.0.1:8777/crawler.html     spider reading a filing, auto-updating
     # http://127.0.0.1:8777/provenance.html  decision path for one reported number
 

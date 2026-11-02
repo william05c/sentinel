@@ -296,6 +296,21 @@ def watch(days: int = typer.Option(3, help="how many days back to scan")) -> Non
 
 
 @app.command()
+def dashboard() -> None:
+    """Write the one-page dashboard over the warehouse.
+
+    Example: sentinel dashboard
+    """
+    from sentinel.reports import dashboard as dash_mod
+
+    paths = _paths()
+    con = db.init(paths.db)
+    out = dash_mod.build(con, paths)
+    console.print(f"written {out}")
+    console.print("served at http://127.0.0.1:8777/dashboard.html")
+
+
+@app.command()
 def findings(
     grade: str = typer.Option(None, help="A, B or C"),
     generate: bool = typer.Option(False, "--generate", help="run the generators first"),

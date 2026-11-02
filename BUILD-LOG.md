@@ -666,3 +666,22 @@ The first generator turns narrative drift into findings. It runs on Apple and pr
 
 Grade C by construction. A phrase rising year over year describes the *document*, not
 the business, and the grader refuses to call it anything stronger.
+
+### Round 3 — The dashboard, and a finding that was killed (2026-11-02)
+
+**Commit:** this one · 66 tests · `sentinel dashboard` → `/dashboard.html`
+
+One static page over the warehouse: 707 companies, 737,744 filings, 4,586,395 XBRL
+facts, metric coverage, data-quality checks, the findings ledger, the latest surfaced
+filings and recent artefacts. No framework, no CDN, no query the CLI does not also use.
+
+**The ledger produced its first retired finding**, which was the whole point of building
+it. A finding's id was derived from its title; tidying the phrase ("and stock price" →
+"stock price") therefore created a *second* finding rather than updating the first. Ids
+now come from a stable key, and the orphan was **retired with a note** rather than
+deleted:
+
+    drift-1A-320193-0000320193-25-000079  new      New risk language: stock price
+    f-9ab528b7bfc520                     retired  New risk language: and stock price
+
+The system can now show something it believed and then stopped believing.
