@@ -271,8 +271,19 @@ def watch(days: int = typer.Option(3, help="how many days back to scan")) -> Non
     # Digest the most recent day that actually produced events. Digesting "today" when
     # the index for today is not yet published reports a quiet day that never happened.
     latest = con.execute("SELECT MAX(digest_date) FROM watch_event").fetchone()[0]
+    fallback = None
+    if stats["days_fetched"] == 0:
+        # The index is one request for a whole day; this is one per company. Only when
+        # the primary path fails, and only for the companies that need it most.
+        with _fetcher(paths) as fetcher:
+            fallback = watch_mod.fallback_scan(con, fetcher, limit=40, days=10)
+        console.print(f"[yellow]index unavailable — polled submissions for {fallback['polled']} companies, "
+                      f"{fallback['new_events']} new filings[/yellow]")
     rescored = watch_mod.rescore(con)
-    d = watch_mod.digest(con, day=latest or today)
+    # Recompute after the fallback: new events carry their own filing dates, and a
+    # digest pinned to a date chosen before they existed would hide them.
+    latest = con.execute("SELECT MAX(digest_date) FROM watch_event").fetchone()[0]
+    d = watch_mod.digest(con, day=latest or today, partial=fallback)
     md, js = watch_mod.write(con, paths, d)
     if stats["failures"]:
         console.print("[yellow]index unavailable:[/yellow] " + "; ".join(stats["failures"][:3]))

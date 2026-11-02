@@ -183,6 +183,64 @@ def sync(con, fetcher, days: list[date], *, quiet: bool = True) -> dict:
             "new_events": new_events, "failures": failures}
 
 
+SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
+
+
+def fallback_scan(con, fetcher, *, limit: int = 40, days: int = 10) -> dict:
+    """Detect new filings through the submissions API when the daily index is blocked.
+
+    The index is one request for every filing in a day; this is one request per company.
+    That is 500x more expensive, which is exactly why it is the fallback and not the
+    primary path. It polls the companies with the stalest filing history first, so a
+    limited budget still covers the whole universe over several runs.
+    """
+    ensure_schema(con)
+    cutoff = date.today() - timedelta(days=days)
+    targets = db.query(con, """
+        SELECT c.cik, MAX(v.filed_date) AS last_filed
+        FROM dim_company c LEFT JOIN fact_filing v ON v.cik = c.cik
+        WHERE c.status = 'active'
+        GROUP BY c.cik
+        ORDER BY last_filed NULLS FIRST
+        LIMIT ?
+    """, [limit])
+
+    polled = 0
+    fresh = 0
+    failures: list[str] = []
+    for cik in targets["cik"].tolist():
+        try:
+            payload, _ = fetcher.get_json(SUBMISSIONS_URL.format(cik=int(cik)))
+            polled += 1
+        except Exception as exc:
+            failures.append(str(cik) + ": " + type(exc).__name__)
+            continue
+        recent = (payload.get("filings") or {}).get("recent") or {}
+        for i, accession in enumerate(recent.get("accessionNumber", [])):
+            filed = recent.get("filingDate", [None] * (i + 1))[i]
+            if not filed:
+                continue
+            try:
+                filed_date = date.fromisoformat(filed)
+            except ValueError:
+                continue
+            if filed_date < cutoff:
+                continue
+            exists = con.execute("SELECT 1 FROM watch_event WHERE accession = ?", [accession]).fetchone()
+            if exists:
+                continue
+            form = recent.get("form", [None] * (i + 1))[i]
+            items = recent.get("items", [""] * (i + 1))[i]
+            weight, reason = score_items(form, items)
+            db.run(con, """
+                INSERT INTO watch_event VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [accession, form, int(cik), form, filed_date, weight, reason,
+                  datetime.now(timezone.utc).replace(tzinfo=None), filed_date,
+                  weight >= THRESHOLD, SCHEMA_VERSION])
+            fresh += 1
+    return {"polled": polled, "new_events": fresh, "failures": failures}
+
+
 def rescore(con) -> dict:
     """Re-derive weights and surfacing for events already recorded.
 
@@ -213,7 +271,7 @@ def rescore(con) -> dict:
     return {"events": total, "surfaced": surfaced, "changed": changed}
 
 
-def digest(con, *, day: date | None = None, limit: int = BUDGET) -> dict:
+def digest(con, *, day: date | None = None, limit: int = BUDGET, partial: dict | None = None) -> dict:
     """Build the digest for a day. Quiet by default."""
     ensure_schema(con)
     day = day or date.today()
@@ -232,15 +290,27 @@ def digest(con, *, day: date | None = None, limit: int = BUDGET) -> dict:
         "suppressed": suppressed,
         "truncated": max(0, len(frame) - limit),
         "quiet": len(items) == 0,
+        # A quiet day from a partial scan is not the same claim as a quiet day from a
+        # full one, so the difference travels with the digest.
+        "partial": partial,
     }
 
 
 def render(d: dict) -> str:
+    partial = d.get("partial")
+    caveat = ""
+    if partial:
+        caveat = ("\n_Scan coverage: the daily index was unavailable, so this digest reflects "
+                  + str(partial.get("polled", 0)) + " companies polled directly. "
+                  + "Silence here is weaker evidence than silence from a full index scan._\n")
     if d["quiet"]:
-        return f"# SENTINEL digest — {d['date']}\n\nNothing material changed. " \
-               f"{d['suppressed']} routine filings were suppressed.\n"
+        return (f"# SENTINEL digest — {d['date']}\n\nNothing material changed. "
+                f"{d['suppressed']} routine filings were suppressed.\n" + caveat)
     lines = [f"# SENTINEL digest — {d['date']}", "",
              f"{len(d['items'])} material items, {d['suppressed']} suppressed.", ""]
+    if caveat:
+        lines.append(caveat.strip())
+        lines.append("")
     for item in d["items"]:
         ticker = item.get("name") or str(item["cik"])
         filed = str(item.get("filed_date") or "")[:10]

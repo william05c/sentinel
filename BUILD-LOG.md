@@ -554,3 +554,27 @@ them. `sentinel downloads` lists every artefact with size and SHA-256.
 
 The CSV is the point: it is the evidence behind the numbers, in a form that can be
 pivoted without the software. A report that only exists on screen is not a deliverable.
+
+### Phase 6e — A fallback that admits it is a fallback (2026-11-02)
+
+The SEC daily index returned **403** and the watch went silent. Silence from a broken
+feed is indistinguishable from silence from a quiet day, which is the worst property a
+monitoring tool can have.
+
+Two changes:
+
+1. **Submissions fallback.** When the index cannot be fetched, the watch polls the
+   submissions API for the 40 companies with the stalest filing history — one request
+   per company rather than one per day, which is why it is the fallback and not the
+   primary path. First run: 40 companies polled, **64 new filings**.
+2. **The digest says so.** Every digest produced this way carries its coverage:
+
+   > _Scan coverage: the daily index was unavailable, so this digest reflects 40
+   > companies polled directly. Silence here is weaker evidence than silence from a
+   > full index scan._
+
+A quiet digest from a partial scan is a much weaker claim than a quiet digest from a
+full one, and the document now makes that distinction instead of hiding it.
+
+Also fixed: the digest date was computed before the fallback ran, so newly found filings
+were written but never shown.
