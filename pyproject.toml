@@ -26,6 +26,10 @@ dependencies = [
 
 [project.optional-dependencies]
 stats = ["scipy>=1.13", "statsmodels>=0.14", "scikit-learn>=1.4"]
+# Optional: browser rendering for JavaScript-driven pages. Heavy (Playwright), so it is
+# not part of the default install and nothing in the SEC pipeline requires it.
+browser = ["crawl4ai>=0.9.5"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 dev = ["pytest>=8", "pytest-cov>=5", "respx>=0.21", "ruff>=0.5", "mypy>=1.10"]
 
 [project.scripts]

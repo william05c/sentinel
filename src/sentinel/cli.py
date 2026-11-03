@@ -296,6 +296,40 @@ def watch(days: int = typer.Option(3, help="how many days back to scan")) -> Non
 
 
 @app.command()
+def fetchmd(url: str = typer.Option(..., help="URL to render with the browser backend")) -> None:
+    """Render a JavaScript page to markdown. Requires the browser extra.
+
+    Example: sentinel fetchmd --url https://example.com
+    """
+    from sentinel.crawler import browser
+
+    if not browser.available():
+        console.print(browser.INSTALL_HINT)
+        raise typer.Exit(code=2)
+    rendered = browser.render_sync(url)
+    console.print(f"status {rendered.status} · {len(rendered.markdown):,} chars of markdown")
+    console.print(rendered.markdown[:2000])
+
+
+@app.command()
+def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8788),
+          reload: bool = typer.Option(False)) -> None:
+    """Run the HTTP API. Binds to localhost by default.
+
+    Example: sentinel serve --port 8788
+    """
+    import uvicorn
+
+    from sentinel.web.app import create_app
+
+    paths = _paths()
+    con = db.init(paths.db)
+    application = create_app(con, paths)
+    console.print(f"http://{host}:{port}")
+    uvicorn.run(application, host=host, port=port, reload=reload, log_level="warning")
+
+
+@app.command()
 def dashboard() -> None:
     """Write the one-page dashboard over the warehouse.
 

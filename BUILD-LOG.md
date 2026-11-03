@@ -695,3 +695,25 @@ Five properties are now asserted: the list is ordered by similarity, a company n
 appears as its own peer, same-industry outranks other-industry, vectors with too few
 observed features are excluded, and an unknown company raises instead of returning an
 empty frame that would look like "no peers found".
+
+### Round 5 — Integration and deployment (2026-11-03)
+
+**Commit:** this one · 80 tests · `sentinel serve --port 8788`
+
+**crawl4ai is integrated as an optional rendering backend, not as the crawler.** It is
+the right tool for a page built by JavaScript and the wrong tool for the SEC, whose data
+arrives as JSON and HTML that httpx reads in milliseconds. Installing it means Playwright,
+patchright and litellm — hundreds of megabytes — so it lives behind
+`pip install "sentinel[browser]"` and nothing in the SEC pipeline depends on it.
+
+When it is used, it is still polite: robots.txt and the source budget are checked through
+the same fetcher before a browser launches, and the rendered HTML goes into the
+content-addressed store so it keeps its provenance.
+
+**Deployment, verified against a running process:**
+
+    GET /api/health   {"status":"ok","companies":707,"facts":4586395,"findings":2}
+
+Web (verified), autonomous (scheduled task script), executable (PyInstaller script). The
+last two are written and documented but **not executed here** — say so in
+docs/DEPLOYMENT.md rather than implying otherwise.
