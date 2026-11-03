@@ -1,0 +1,168 @@
+{
+ "generated_at": "2026-11-03T15:07:33.704125+00:00",
+ "company": {
+  "name": "Apple Inc.",
+  "cik": 320193,
+  "ticker": "AAPL"
+ },
+ "counts": {
+  "filing": 6,
+  "bulk": 8
+ },
+ "targets": [
+  {
+   "kind": "filing",
+   "form": "10-K",
+   "filed": "2025-10-31",
+   "period_end": "2025-09-27",
+   "accession": "0000320193-25-000079",
+   "document": "aapl-20250927.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+   "description": "10-K",
+   "items": ""
+  },
+  {
+   "kind": "filing",
+   "form": "10-K",
+   "filed": "2024-11-01",
+   "period_end": "2024-09-28",
+   "accession": "0000320193-24-000123",
+   "document": "aapl-20240928.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm",
+   "description": "10-K",
+   "items": ""
+  },
+  {
+   "kind": "filing",
+   "form": "10-K",
+   "filed": "2023-11-03",
+   "period_end": "2023-09-30",
+   "accession": "0000320193-23-000106",
+   "document": "aapl-20230930.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm",
+   "description": "10-K",
+   "items": ""
+  },
+  {
+   "kind": "filing",
+   "form": "10-K",
+   "filed": "2022-10-28",
+   "period_end": "2022-09-24",
+   "accession": "0000320193-22-000108",
+   "document": "aapl-20220924.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019322000108/aapl-20220924.htm",
+   "description": "10-K",
+   "items": ""
+  },
+  {
+   "kind": "filing",
+   "form": "10-K",
+   "filed": "2021-10-29",
+   "period_end": "2021-09-25",
+   "accession": "0000320193-21-000105",
+   "document": "aapl-20210925.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019321000105/aapl-20210925.htm",
+   "description": "10-K",
+   "items": ""
+  },
+  {
+   "kind": "filing",
+   "form": "10-K",
+   "filed": "2020-10-30",
+   "period_end": "2020-09-26",
+   "accession": "0000320193-20-000096",
+   "document": "aapl-20200926.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019320000096/aapl-20200926.htm",
+   "description": "10-K",
+   "items": ""
+  },
+  {
+   "kind": "bulk",
+   "form": "financial-statement-data-set",
+   "filed": "2026q4",
+   "period_end": "2026q4",
+   "accession": "",
+   "document": "2026q4.zip",
+   "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2026q4.zip",
+   "description": "quarterly numeric facts for every filer",
+   "items": ""
+  },
+  {
+   "kind": "bulk",
+   "form": "financial-statement-data-set",
+   "filed": "2026q3",
+   "period_end": "2026q3",
+   "accession": "",
+   "document": "2026q3.zip",
+   "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2026q3.zip",
+   "description": "quarterly numeric facts for every filer",
+   "items": ""
+  },
+  {
+   "kind": "bulk",
+   "form": "financial-statement-data-set",
+   "filed": "2026q2",
+   "period_end": "2026q2",
+   "accession": "",
+   "document": "2026q2.zip",
+   "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2026q2.zip",
+   "description": "quarterly numeric facts for every filer",
+   "items": ""
+  },
+  {
+   "kind": "bulk",
+   "form": "financial-statement-data-set",
+   "filed": "2026q1",
+   "period_end": "2026q1",
+   "accession": "",
+   "document": "2026q1.zip",
+   "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2026q1.zip",
+   "description": "quarterly numeric facts for every filer",
+   "items": ""
+  },
+  {
+   "kind": "bulk",
+   "form": "financial-statement-data-set",
+   "filed": "2025q4",
+   "period_end": "2025q4",
+   "accession": "",
+   "document": "2025q4.zip",
+   "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2025q4.zip",
+   "description": "quarterly numeric facts for every filer",
+   "items": ""
+  },
+  {
+   "kind": "bulk",
+   "form": "financial-statement-data-set",
+   "filed": "2025q3",
+   "period_end": "2025q3",
+   "accession": "",
+   "document": "2025q3.zip",
+   "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2025q3.zip",
+   "description": "quarterly numeric facts for every filer",
+   "items": ""
+  },
+  {
+   "kind": "bulk",
+   "form": "financial-statement-data-set",
+   "filed": "2025q2",
+   "period_end": "2025q2",
+   "accession": "",
+   "document": "2025q2.zip",
+   "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2025q2.zip",
+   "description": "quarterly numeric facts for every filer",
+   "items": ""
+  },
+  {
+   "kind": "bulk",
+   "form": "financial-statement-data-set",
+   "filed": "2025q1",
+   "period_end": "2025q1",
+   "accession": "",
+   "document": "2025q1.zip",
+   "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2025q1.zip",
+   "description": "quarterly numeric facts for every filer",
+   "items": ""
+  }
+ ]
+}

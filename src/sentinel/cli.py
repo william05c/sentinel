@@ -296,6 +296,78 @@ def watch(days: int = typer.Option(3, help="how many days back to scan")) -> Non
 
 
 @app.command()
+def targets(
+    ticker: str = typer.Option(..., help="e.g. --ticker AAPL"),
+    forms: str = typer.Option("", help="comma-separated form types, e.g. 10-K,10-Q"),
+    limit: int = typer.Option(40, help="max filing documents"),
+    bulk: bool = typer.Option(True, help="include quarterly SEC bulk archives"),
+) -> None:
+    """List the actual files available for a company, and write a manifest.
+
+    Example: sentinel targets --ticker AAPL --forms 10-K
+    """
+    from sentinel import targets as targets_mod
+
+    paths = _paths()
+    con = db.init(paths.db)
+    wanted = [f.strip() for f in forms.split(",") if f.strip()] or None
+    manifest = targets_mod.build_manifest(con, paths, ticker=ticker, forms=wanted,
+                                          limit=limit, include_bulk=bulk)
+    table = Table(title=f"targets for {ticker.upper()} ({manifest['counts']['filing']} filings, "
+                        f"{manifest['counts']['bulk']} bulk)")
+    for column in ("form", "filed", "document", "url"):
+        table.add_column(column)
+    for target in manifest["targets"][:18]:
+        table.add_row(target["form"], target["filed"], str(target["document"])[:34], str(target["url"])[:64])
+    console.print(table)
+    console.print(f"manifest  {paths.root}\\viz\\targets.json")
+    console.print("picker    http://127.0.0.1:8777/targets.html")
+
+
+@app.command()
+def download(
+    ticker: str = typer.Option(..., help="e.g. --ticker AAPL"),
+    forms: str = typer.Option("10-K", help="comma-separated form types"),
+    limit: int = typer.Option(3, help="how many documents"),
+) -> None:
+    """Download the selected filings into data/files/.
+
+    Example: sentinel download --ticker AAPL --forms 10-K --limit 2
+    """
+    from sentinel import targets as targets_mod
+
+    paths = _paths()
+    con = db.init(paths.db)
+    wanted = [f.strip() for f in forms.split(",") if f.strip()] or None
+    manifest = targets_mod.build_manifest(con, paths, ticker=ticker, forms=wanted,
+                                          limit=limit, include_bulk=False)
+    with _fetcher(paths) as fetcher:
+        saved = targets_mod.download(con, fetcher, paths, manifest, limit=limit)
+    for item in saved:
+        if "error" in item:
+            console.print(f"[red]{item['url'][:70]}[/red] {item['error']}")
+        else:
+            console.print(f"{item['bytes']:>10,} bytes  {item['path']}")
+    console.print(f"saved {sum(1 for s in saved if 'path' in s)} of {len(saved)}")
+
+
+@app.command()
+def firecrawl(url: str = typer.Option(..., help="URL to scrape through Firecrawl")) -> None:
+    """Scrape a page through Firecrawl (needs FIRECRAWL_API_KEY).
+
+    Example: sentinel firecrawl --url https://example.com
+    """
+    from sentinel.adapters import firecrawl as fc
+
+    if not fc.available():
+        console.print(fc.INSTALL_HINT)
+        raise typer.Exit(code=2)
+    result = fc.scrape(url)
+    console.print(f"status {result['status']} · {len(result['markdown']):,} chars of markdown")
+    console.print(result["markdown"][:2000])
+
+
+@app.command()
 def fetchmd(url: str = typer.Option(..., help="URL to render with the browser backend")) -> None:
     """Render a JavaScript page to markdown. Requires the browser extra.
 
@@ -323,8 +395,9 @@ def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8788),
     from sentinel.web.app import create_app
 
     paths = _paths()
-    con = db.init(paths.db)
-    application = create_app(con, paths)
+    db.init(paths.db).close()  # create the file if needed, then release it
+    # The server must not hold the write lock: `sentinel watch` writes to the same file.
+    application = create_app(lambda: db.connect(paths.db, read_only=True), paths)
     console.print(f"http://{host}:{port}")
     uvicorn.run(application, host=host, port=port, reload=reload, log_level="warning")
 

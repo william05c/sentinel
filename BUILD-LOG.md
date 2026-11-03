@@ -717,3 +717,24 @@ content-addressed store so it keeps its provenance.
 Web (verified), autonomous (scheduled task script), executable (PyInstaller script). The
 last two are written and documented but **not executed here** — say so in
 docs/DEPLOYMENT.md rather than implying otherwise.
+
+### Round 6 — Firecrawl, file targets, and a picker (2026-11-03)
+
+**Commit:** this one · 85 tests · `sentinel targets --ticker AAPL` · `/targets.html`
+
+**Firecrawl** is integrated as a hosted-service client (`v2/scrape`, markdown), with
+`FIRECRAWL_API_URL` accepted so a self-hosted instance works identically. Not vendored:
+their release is a Node stack with Redis and a browser pool, and the SEC serves JSON.
+
+**Targets** turn "identify the actual files" into a manifest: every stored filing with a
+primary document (form, date, accession, document, URL) plus the quarterly bulk archives.
+Apple: 6 annual reports and 8 quarterly archives, with URLs that open.
+
+**The picker** at `/targets.html` filters, selects and copies the URL list, and
+`sentinel download --ticker AAPL --forms 10-K --limit 2` fetches the chosen documents into
+`data/files/` through the polite fetcher.
+
+**A defect this exposed:** `sentinel serve` held DuckDB's exclusive write lock for the
+life of the process, so the web app *blocked the scheduled watch*. The server now opens a
+read-only connection per request; a long-running app must not be able to stop the job it
+is meant to display.

@@ -17,6 +17,13 @@ INSTALL_HINT = 'the web extra is not installed: pip install "sentinel[web]"'
 
 
 def create_app(con, paths):
+    """con may be a connection or a zero-argument callable returning one.
+
+    A long-lived read-write connection holds DuckDB's exclusive lock for the life of the
+    server, which blocks `sentinel watch` from writing while the web app is running. The
+    server therefore opens a read-only connection per request; a caller that passes a
+    connection (the tests) keeps the simple behaviour.
+    """
     """Build the app. FastAPI is imported here, not at module scope, so that importing
     every module of this package works on a machine that only installed the core deps."""
     try:
@@ -30,11 +37,25 @@ def create_app(con, paths):
         url: str
         markdown: bool = True
 
+    from contextlib import contextmanager
+
+    @contextmanager
+    def db_session():
+        if callable(con):
+            connection = con()
+            try:
+                yield connection
+            finally:
+                connection.close()
+        else:
+            yield con
+
     app = FastAPI(title="SENTINEL", version="0.1.0", description="Point-in-time public-company intelligence")
 
     @app.get("/api/health")
     def health() -> dict:
-        counts = db.table_counts(con)
+        with db_session() as conn:
+            counts = db.table_counts(conn)
         return {"status": "ok", "companies": counts.get("dim_company", 0),
                 "facts": counts.get("fact_xbrl", 0), "findings": counts.get("finding", 0)}
 
@@ -44,34 +65,39 @@ def create_app(con, paths):
                "WHERE (? = '' OR lower(name) LIKE ? OR upper(tickers) LIKE ?) "
                "ORDER BY name LIMIT ?")
         like = "%" + q.lower() + "%"
-        frame = db.query(con, sql, [q, like, "%" + q.upper() + "%", min(limit, 200)])
+        with db_session() as conn:
+            frame = db.query(conn, sql, [q, like, "%" + q.upper() + "%", min(limit, 200)])
         return frame.to_dict("records")
 
     @app.get("/api/company/{cik}")
     def company(cik: int) -> dict:
-        rows = db.query(con, "SELECT * FROM dim_company WHERE cik = ?", [cik])
-        if rows.empty:
-            raise HTTPException(404, "unknown cik")
-        metrics = db.query(con, """
-            SELECT metric_id, fiscal_year, value, unit, tag_used, accession
-            FROM fact_xbrl_canonical WHERE cik = ? AND fiscal_year >= 2015
-            ORDER BY metric_id, fiscal_year DESC LIMIT 400
-        """, [cik])
+        with db_session() as conn:
+            rows = db.query(conn, "SELECT * FROM dim_company WHERE cik = ?", [cik])
+            if rows.empty:
+                raise HTTPException(404, "unknown cik")
+            metrics = db.query(conn, """
+                SELECT metric_id, fiscal_year, value, unit, tag_used, accession
+                FROM fact_xbrl_canonical WHERE cik = ? AND fiscal_year >= 2015
+                ORDER BY metric_id, fiscal_year DESC LIMIT 400
+            """, [cik])
         return {"company": rows.iloc[0].to_dict(), "metrics": metrics.to_dict("records")}
 
     @app.get("/api/findings")
     def findings(grade: str = "", limit: int = 25) -> list[dict]:
         from sentinel.analytics import findings as ledger
-        frame = ledger.ledger(con, grade=grade or None, limit=min(limit, 200))
+        with db_session() as conn:
+            frame = ledger.ledger(conn, grade=grade or None, limit=min(limit, 200))
         return frame.to_dict("records")
 
     @app.get("/api/digest")
     def digest(day: str = "") -> dict:
         from sentinel import watch
-        watch.ensure_schema(con)  # a fresh warehouse has no watch_event table yet
-        target = date.fromisoformat(day) if day else (
-            db.scalar(con, "SELECT MAX(digest_date) FROM watch_event") or date.today())
-        return watch.digest(con, day=target)
+        with db_session() as conn:
+            # a fresh warehouse has no watch_event table yet
+            watch.ensure_schema(conn)
+            target = date.fromisoformat(day) if day else (
+                db.scalar(conn, "SELECT MAX(digest_date) FROM watch_event") or date.today())
+            return watch.digest(conn, day=target)
 
     @app.post("/api/crawl")
     def crawl(request: CrawlRequest) -> dict:

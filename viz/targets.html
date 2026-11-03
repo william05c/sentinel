@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>SENTINEL — targets</title>
+<style>
+ :root{--bg:#070a0e;--panel:#0d141c;--line:#18222e;--ink:#a8bccf;--dim:#5f7284;--lit:#eaf4ff;--ok:#3ddc97}
+ *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);
+   font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;padding:24px}
+ h1{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--lit);margin:0 0 4px}
+ .sub{color:var(--dim);font-size:11px;margin-bottom:16px}
+ .bar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+ input[type=search],select{background:var(--panel);border:1px solid var(--line);color:var(--ink);
+   padding:6px 10px;border-radius:6px;font:inherit;min-width:180px}
+ button{background:#0f1c26;border:1px solid #21405a;color:var(--ok);padding:6px 12px;
+   border-radius:6px;font:inherit;cursor:pointer}
+ button:hover{border-color:var(--ok)}
+ .count{margin-left:auto;color:var(--ok)}
+ table{width:100%;border-collapse:collapse}
+ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #111a23}
+ th{color:var(--dim);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:500}
+ tr:hover td{background:#0c141c}
+ tr.bulk td{color:#8b9bab}
+ td a{color:var(--ok);text-decoration:none}
+ .kind{font-size:10px;padding:1px 6px;border-radius:10px;border:1px solid var(--line)}
+ .kind.f{color:#7fe3ff;border-color:#1d3d52}
+ .kind.b{color:#f5c26b;border-color:#4a3a1d}
+ textarea{width:100%;height:90px;background:var(--panel);border:1px solid var(--line);
+   color:var(--ink);font:11px ui-monospace,monospace;padding:8px;border-radius:6px;margin-top:10px}
+</style></head><body>
+<h1>SENTINEL — targets</h1>
+<div class="sub" id="sub">loading…</div>
+<div class="bar">
+  <input type="search" id="q" placeholder="filter by form, date, document">
+  <select id="kind"><option value="">all kinds</option><option value="filing">filings</option><option value="bulk">bulk archives</option></select>
+  <button id="all">select visible</button>
+  <button id="none">clear</button>
+  <button id="copy">copy URL list</button>
+  <span class="count" id="count">0 selected</span>
+</div>
+<table><thead><tr><th></th><th>kind</th><th>form</th><th>filed</th><th>document</th><th>url</th></tr></thead>
+<tbody id="rows"></tbody></table>
+<textarea id="out" readonly placeholder="selected URLs appear here"></textarea>
+<script>
+var DATA = null, selected = new Set();
+function esc(s){ return String(s).replace(/[<>&]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c]; }); }
+function render(){
+  var q = document.getElementById('q').value.toLowerCase();
+  var kind = document.getElementById('kind').value;
+  var rows = DATA.targets.filter(function(t){
+    if (kind && t.kind !== kind) return false;
+    if (!q) return true;
+    return (t.form + ' ' + t.filed + ' ' + t.document + ' ' + t.description).toLowerCase().indexOf(q) >= 0;
+  });
+  document.getElementById('rows').innerHTML = rows.map(function(t, i){
+    var id = encodeURIComponent(t.url);
+    return '<tr class="' + t.kind + '">' +
+      '<td><input type="checkbox" data-url="' + esc(t.url) + '"' + (selected.has(t.url) ? ' checked' : '') + '></td>' +
+      '<td><span class="kind ' + (t.kind === 'filing' ? 'f' : 'b') + '">' + t.kind + '</span></td>' +
+      '<td>' + esc(t.form) + '</td><td>' + esc(t.filed) + '</td>' +
+      '<td>' + esc(t.document) + '</td>' +
+      '<td><a href="' + esc(t.url) + '" target="_blank" rel="noopener">open</a></td></tr>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('input[type=checkbox]'), function(box){
+    box.addEventListener('change', function(){
+      if (box.checked) selected.add(box.dataset.url); else selected.delete(box.dataset.url);
+      update();
+    });
+  });
+  update();
+}
+function update(){
+  document.getElementById('count').textContent = selected.size + ' selected';
+  document.getElementById('out').value = Array.from(selected).join('\n');
+}
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('kind').addEventListener('change', render);
+document.getElementById('all').addEventListener('click', function(){
+  DATA.targets.forEach(function(t){ selected.add(t.url); }); render();
+});
+document.getElementById('none').addEventListener('click', function(){ selected.clear(); render(); });
+document.getElementById('copy').addEventListener('click', function(){
+  var el = document.getElementById('out'); el.select(); document.execCommand('copy');
+});
+fetch('targets.json?t=' + Date.now(), {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(d){
+  DATA = d;
+  document.getElementById('sub').textContent =
+    d.company.name + ' · cik ' + d.company.cik + ' · ' + d.counts.filing + ' filing documents · ' +
+    d.counts.bulk + ' bulk archives · generated ' + d.generated_at.slice(0, 19).replace('T', ' ');
+  render();
+}).catch(function(){ document.getElementById('sub').textContent = 'targets.json not found — run: sentinel targets --ticker AAPL'; });
+</script></body></html>
