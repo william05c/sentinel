@@ -13,19 +13,25 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
-from pydantic import BaseModel
-
 from sentinel.warehouse import db
 
-
-class CrawlRequest(BaseModel):
-    url: str
-    markdown: bool = True
+INSTALL_HINT = 'the web extra is not installed: pip install "sentinel[web]"'
 
 
-def create_app(con, paths) -> FastAPI:
+def create_app(con, paths):
+    """Build the app. FastAPI is imported here, not at module scope, so that importing
+    every module of this package works on a machine that only installed the core deps."""
+    try:
+        from fastapi import FastAPI, HTTPException
+        from fastapi.responses import FileResponse, HTMLResponse
+        from pydantic import BaseModel
+    except ImportError as exc:  # pragma: no cover - exercised only without the extra
+        raise ImportError(INSTALL_HINT) from exc
+
+    class CrawlRequest(BaseModel):
+        url: str
+        markdown: bool = True
+
     app = FastAPI(title="SENTINEL", version="0.1.0", description="Point-in-time public-company intelligence")
 
     @app.get("/api/health")
