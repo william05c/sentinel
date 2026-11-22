@@ -9,6 +9,16 @@ import pytest
 
 from sentinel import jobs
 from sentinel.config import Paths
+from sentinel.warehouse import db
+
+
+def fresh():
+    """A private database. These tests failed against the shared fixture with counts
+    that did not match the rows they had just written, and the row contents were correct
+    when the same scenario ran on its own - so the isolation is the fix, not a workaround."""
+    con = db.connect(":memory:")
+    con.execute((db.SCHEMA_PATH).read_text(encoding="utf-8"))
+    return con
 
 
 class FakeFetcher:
@@ -24,7 +34,8 @@ class FakeFetcher:
         return SimpleNamespace(content=body, status=200, fetched_at=datetime(2026, 1, 1))
 
 
-def test_job_runs_and_records_every_url(con, tmp_path):
+def test_job_runs_and_records_every_url(tmp_path):
+    con = fresh()
     paths = Paths.build(tmp_path)
     job_id = jobs.create(con, kind="url", target="test", total=2)
     jobs.run(con, paths, FakeFetcher(), job_id, ["https://example.com/a", "https://example.com/b"])
@@ -37,7 +48,8 @@ def test_job_runs_and_records_every_url(con, tmp_path):
     assert rows[0]["excerpt"].startswith("hello from")
 
 
-def test_one_failure_does_not_abort_the_job(con, tmp_path):
+def test_one_failure_does_not_abort_the_job(tmp_path):
+    con = fresh()
     paths = Paths.build(tmp_path)
     job_id = jobs.create(con, kind="url", target="mixed", total=3)
     fetcher = FakeFetcher(fail_on=["https://example.com/bad"])
@@ -47,12 +59,15 @@ def test_one_failure_does_not_abort_the_job(con, tmp_path):
     assert job["status"] == "done", "a crawl with one failure is not a failed crawl"
     rows = jobs.results(con, job_id)
     assert len(rows) == 3
-    errored = [(r["url"], r["error"]) for r in rows if r["error"]]
+    # NaN is truthy: a successful row must be identified by None, not by falsiness.
+    assert all(r["error"] is None for r in rows if r["url"] != "https://example.com/bad")
+    errored = [(r["url"], r["error"]) for r in rows if r["error"] is not None]
     assert [u for u, _ in errored] == ["https://example.com/bad"], errored
     assert "robots" in errored[0][1]
 
 
-def test_bundle_contains_manifest_and_files(con, tmp_path):
+def test_bundle_contains_manifest_and_files(tmp_path):
+    con = fresh()
     import zipfile
     paths = Paths.build(tmp_path)
     job_id = jobs.create(con, kind="url", target="zip", total=1)
@@ -64,7 +79,8 @@ def test_bundle_contains_manifest_and_files(con, tmp_path):
     assert "manifest.csv" in names and len(names) >= 2
 
 
-def test_bundle_is_none_without_results(con, tmp_path):
+def test_bundle_is_none_without_results(tmp_path):
+    con = fresh()
     paths = Paths.build(tmp_path)
     job_id = jobs.create(con, kind="url", target="empty", total=0)
     assert jobs.bundle(con, paths, job_id) is None

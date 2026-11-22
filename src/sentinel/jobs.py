@@ -19,6 +19,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 from sentinel import SCHEMA_VERSION
 from sentinel.warehouse import db
 
@@ -36,19 +38,30 @@ def create(con, *, kind: str, target: str, total: int) -> str:
     return job_id
 
 
+def _clean(frame: pd.DataFrame) -> pd.DataFrame:
+    """NULL comes back from DuckDB as NaN, and NaN is truthy in Python and JavaScript.
+
+    A successful row with NaN in its error column therefore renders as a failure in the
+    console and serialises to invalid JSON in the API. NULL has to be None before either
+    consumer sees it.
+    """
+    as_object = frame.astype(object)
+    return as_object.where(pd.notna(as_object), None)
+
+
 def get(con, job_id: str) -> dict | None:
     rows = db.query(con, "SELECT * FROM crawl_job WHERE job_id = ?", [job_id])
-    return None if rows.empty else rows.iloc[0].to_dict()
+    return None if rows.empty else _clean(rows).iloc[0].to_dict()
 
 
 def listing(con, limit: int = 20) -> list[dict]:
     frame = db.query(con, "SELECT * FROM crawl_job ORDER BY created_at DESC LIMIT ?", [limit])
-    return frame.to_dict("records")
+    return _clean(frame).to_dict("records")
 
 
 def results(con, job_id: str) -> list[dict]:
     frame = db.query(con, "SELECT * FROM crawl_result WHERE job_id = ? ORDER BY seq", [job_id])
-    return frame.to_dict("records")
+    return _clean(frame).to_dict("records")
 
 
 def _set(con, job_id: str, **fields) -> None:
