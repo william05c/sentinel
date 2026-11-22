@@ -16,7 +16,7 @@ import hashlib
 import threading
 import traceback
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -60,6 +60,9 @@ def assert_safe_target(url: str) -> None:
             second = 0
         if 16 <= second <= 31:
             raise UnsafeTarget("refusing to crawl a private address: " + host)
+
+
+_timedelta = timedelta
 
 
 def _now() -> datetime:
@@ -134,6 +137,23 @@ def run(con, paths, fetcher, job_id: str, urls: list[str]) -> None:
         _set(con, job_id, status="done", finished_at=_now())
     except Exception:
         _set(con, job_id, status="failed", error=traceback.format_exc()[-400:], finished_at=_now())
+
+
+def reconcile_stale(con, *, minutes: int = 15, now: datetime | None = None) -> int:
+    """Mark jobs abandoned by a dead process, so `running` cannot mean `rotting`.
+
+    A job whose worker died - process killed, machine rebooted, exception outside the
+    guarded loop - otherwise reads as running forever and the console shows a spinner
+    for something that stopped existing.
+    """
+    reference = now or _now()
+    cutoff = reference - _timedelta(minutes=minutes)
+    rows = db.query(con, "SELECT job_id FROM crawl_job WHERE status IN ('running','queued') AND created_at < ?",
+                    [cutoff])
+    for job_id in rows["job_id"].tolist():
+        _set(con, job_id, status="failed", finished_at=reference,
+             error="stale: no progress for " + str(minutes) + " minutes (worker stopped)")
+    return len(rows)
 
 
 def start(con_factory, paths, fetcher, job_id: str, urls: list[str]) -> None:

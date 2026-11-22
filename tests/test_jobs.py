@@ -127,3 +127,24 @@ def test_private_targets_are_refused(url):
 def test_public_targets_pass():
     jobs.assert_safe_target("https://www.sec.gov/Archives/edgar/data/320193/x.htm")
     jobs.assert_safe_target("https://172.32.0.1/")   # outside the private 172.16-31 range
+
+
+def test_stale_jobs_are_reconciled():
+    """A worker that dies must not leave a job 'running' for ever."""
+    from datetime import datetime, timedelta
+
+    con = fresh()
+    old = jobs.create(con, kind="url", target="dead", total=1)
+    jobs._set(con, old, status="running")
+    # backdate it beyond the threshold
+    con.execute("UPDATE crawl_job SET created_at = ? WHERE job_id = ?",
+                [datetime(2026, 1, 1), old])
+
+    fresh_job = jobs.create(con, kind="url", target="alive", total=1)
+    jobs._set(con, fresh_job, status="running")
+
+    changed = jobs.reconcile_stale(con, minutes=15, now=datetime(2026, 1, 2))
+    assert changed == 1
+    assert jobs.get(con, old)["status"] == "failed"
+    assert "stale" in jobs.get(con, old)["error"]
+    assert jobs.get(con, fresh_job)["status"] == "running", "a live job must not be killed"

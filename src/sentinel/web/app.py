@@ -50,6 +50,10 @@ def create_app(con, paths):
         else:
             yield con
 
+    with db_session() as conn:
+        from sentinel import jobs as _jobs
+        _jobs.reconcile_stale(conn)  # never leave a spinner for a dead worker
+
     app = FastAPI(title="SENTINEL", version="0.1.0", description="Point-in-time public-company intelligence")
 
     @app.get("/api/health")
@@ -131,8 +135,15 @@ def create_app(con, paths):
         if len(urls) > jobs.MAX_URLS:
             raise HTTPException(400, f"at most {jobs.MAX_URLS} URLs per job")
 
-        with db_session() as conn:
-            job_id = jobs.create(conn, kind="url", target=request.label or urls[0], total=len(urls))
+        try:
+            with db_session() as conn:
+                job_id = jobs.create(conn, kind="url", target=request.label or urls[0], total=len(urls))
+        except Exception as exc:
+            # DuckDB permits one writer. A crawl job holding it must surface as "retry",
+            # not as an opaque 500 that looks like a bug in the console.
+            if "Cannot open file" in str(exc) or "being used by another process" in str(exc):
+                raise HTTPException(503, "warehouse is busy: a crawl job is writing; retry shortly")
+            raise
 
         # A worker runs it off the request thread when the app owns the database path.
         # Without one (tests) the job stays queued, which is the honest state.
