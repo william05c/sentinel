@@ -112,3 +112,18 @@ def test_api_rejects_junk(con, tmp_path):
     assert client.post("/api/jobs", json={"urls": ["not a url"]}).status_code == 400
     assert client.post("/api/jobs", json={"urls": []}).status_code == 400
     assert client.post("/api/jobs", json={"urls": ["https://x.com"] * 99}).status_code == 400
+
+
+@pytest.mark.parametrize("url", [
+    "http://localhost/admin", "http://127.0.0.1:8788/", "http://192.168.1.1/",
+    "http://10.0.0.5/", "http://169.254.169.254/latest/meta-data/", "http://172.16.0.1/",
+    "http://metadata.google.internal/", "ftp://example.com/x",
+])
+def test_private_targets_are_refused(url):
+    with pytest.raises(jobs.UnsafeTarget):
+        jobs.assert_safe_target(url)
+
+
+def test_public_targets_pass():
+    jobs.assert_safe_target("https://www.sec.gov/Archives/edgar/data/320193/x.htm")
+    jobs.assert_safe_target("https://172.32.0.1/")   # outside the private 172.16-31 range

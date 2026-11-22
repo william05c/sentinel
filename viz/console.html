@@ -64,6 +64,7 @@ function loadJobs(){
 function openJob(id){
   current = id;
   fetch('api/jobs/' + id + '?t=' + Date.now(), {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
+    if (id !== current) return;  // the user selected another job while this was in flight
     document.getElementById('detail-title').textContent = 'results — ' + id;
     document.getElementById('detail-bar').style.display = 'flex';
     document.getElementById('detail-meta').textContent = j.status + ' · ' + j.done + '/' + j.total +

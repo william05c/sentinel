@@ -117,9 +117,17 @@ def create_app(con, paths):
     def create_job(request: JobRequest):
         from sentinel import jobs
 
-        urls = [u.strip() for u in request.urls if u.strip().startswith(("http://", "https://"))]
+        from sentinel.jobs import UnsafeTarget
+
+        urls = [u.strip() for u in request.urls if u.strip()]
         if not urls:
             raise HTTPException(400, "supply at least one http(s) URL")
+        # A crawl endpoint on localhost is an SSRF primitive unless it refuses to be one.
+        for url in urls:
+            try:
+                jobs.assert_safe_target(url)
+            except UnsafeTarget as exc:
+                raise HTTPException(400, str(exc))
         if len(urls) > jobs.MAX_URLS:
             raise HTTPException(400, f"at most {jobs.MAX_URLS} URLs per job")
 
@@ -151,7 +159,7 @@ def create_app(con, paths):
     def job_list(limit: int = 20):
         from sentinel import jobs
         with db_session() as conn:
-            return jobs.listing(conn, min(limit, 100))
+            return jobs.listing(conn, max(1, min(limit, 100)))
 
     @app.get("/api/jobs/{job_id}")
     def job_detail(job_id: str):

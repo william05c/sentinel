@@ -26,6 +26,41 @@ from sentinel.warehouse import db
 
 MAX_URLS = 50
 
+PRIVATE_PREFIXES = ("127.", "10.", "192.168.", "169.254.", "0.", "::1")
+PRIVATE_NAMES = ("localhost", "localhost.localdomain", "metadata.google.internal")
+
+
+class UnsafeTarget(ValueError):
+    """A URL that would make this process fetch something it should not."""
+
+
+def assert_safe_target(url: str) -> None:
+    """Refuse loopback, link-local and private targets.
+
+    The console accepts arbitrary URLs from whoever can reach it. Without this check the
+    endpoint is a server-side request forgery primitive pointed at the host it runs on:
+    cloud metadata, admin panels on 127.0.0.1, anything on the LAN.
+    """
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise UnsafeTarget("only http and https are allowed: " + url[:60])
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise UnsafeTarget("URL has no host: " + url[:60])
+    if host in PRIVATE_NAMES or host.endswith(".local") or host.endswith(".internal"):
+        raise UnsafeTarget("refusing to crawl a private host: " + host)
+    if host.startswith(PRIVATE_PREFIXES):
+        raise UnsafeTarget("refusing to crawl a private address: " + host)
+    if host.startswith("172."):
+        try:
+            second = int(host.split(".")[1])
+        except (IndexError, ValueError):
+            second = 0
+        if 16 <= second <= 31:
+            raise UnsafeTarget("refusing to crawl a private address: " + host)
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -123,10 +158,17 @@ def bundle(con, paths, job_id: str) -> Path | None:
     if not rows:
         return None
     out = Path(paths.data) / "files" / (job_id + ".zip")
+    import csv
+    import io
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["seq", "url", "status", "bytes", "error"])
+    for row in rows:
+        # csv.writer, not f-strings: a URL containing a quote corrupted the manifest.
+        writer.writerow([row["seq"], row["url"], row["status"] or "", row["bytes"] or "", row["error"] or ""])
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("manifest.csv", "seq,url,status,bytes,error\n" + "".join(
-            f'{r["seq"]},"{r["url"]}",{r["status"] or ""},{r["bytes"] or ""},"{(r["error"] or "")}"\n'
-            for r in rows))
+        zf.writestr("manifest.csv", buffer.getvalue())
         for row in rows:
             saved = row.get("saved_path")
             if saved and Path(saved).exists():
