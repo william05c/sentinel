@@ -147,13 +147,20 @@ def reconcile_stale(con, *, minutes: int = 15, now: datetime | None = None) -> i
     for something that stopped existing.
     """
     reference = now or _now()
-    cutoff = reference - _timedelta(minutes=minutes)
-    rows = db.query(con, "SELECT job_id FROM crawl_job WHERE status IN ('running','queued') AND created_at < ?",
-                    [cutoff])
-    for job_id in rows["job_id"].tolist():
-        _set(con, job_id, status="failed", finished_at=reference,
-             error="stale: no progress for " + str(minutes) + " minutes (worker stopped)")
-    return len(rows)
+    # A queued job with no worker is dead within minutes. A running job may simply be
+    # slow: 50 URLs at a polite rate is minutes, not hours, but a busy day is not proof
+    # of death, so the running threshold is deliberately generous.
+    limits = {"queued": _timedelta(minutes=minutes), "running": _timedelta(hours=6)}
+    changed = 0
+    for status, tolerance in limits.items():
+        rows = db.query(con, "SELECT job_id FROM crawl_job WHERE status = ? AND created_at < ?",
+                        [status, reference - tolerance])
+        for job_id in rows["job_id"].tolist():
+            _set(con, job_id, status="failed", finished_at=reference,
+                 error=("stale: never started (no worker)" if status == "queued"
+                        else "stale: no completion after 6 hours"))
+            changed += 1
+    return changed
 
 
 def start(con_factory, paths, fetcher, job_id: str, urls: list[str]) -> None:
@@ -163,11 +170,24 @@ def start(con_factory, paths, fetcher, job_id: str, urls: list[str]) -> None:
     request's connection is closed when the response is sent.
     """
     def worker():
-        connection = con_factory()
+        connection = None
         try:
+            connection = con_factory()
             run(connection, paths, fetcher, job_id, urls)
+        except Exception as exc:
+            # The request already answered 200, so a thread that dies here would leave a
+            # job nobody is running. Record the real reason, using a new connection if
+            # the first one is what failed.
+            message = type(exc).__name__ + ": " + str(exc)[:200]
+            try:
+                if connection is None:
+                    connection = con_factory()
+                _set(connection, job_id, status="failed", error=message, finished_at=_now())
+            except Exception:
+                pass
         finally:
-            connection.close()
+            if connection is not None:
+                connection.close()
 
     threading.Thread(target=worker, name="crawl-" + job_id, daemon=True).start()
 

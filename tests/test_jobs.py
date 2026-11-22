@@ -134,17 +134,62 @@ def test_stale_jobs_are_reconciled():
     from datetime import datetime, timedelta
 
     con = fresh()
+    now = jobs._now()  # the module works in naive UTC; datetime.now() is local
     old = jobs.create(con, kind="url", target="dead", total=1)
     jobs._set(con, old, status="running")
-    # backdate it beyond the threshold
-    con.execute("UPDATE crawl_job SET created_at = ? WHERE job_id = ?",
-                [datetime(2026, 1, 1), old])
+    con.execute("UPDATE crawl_job SET created_at = ? WHERE job_id = ?", [now - timedelta(hours=7), old])
 
     fresh_job = jobs.create(con, kind="url", target="alive", total=1)
     jobs._set(con, fresh_job, status="running")
 
-    changed = jobs.reconcile_stale(con, minutes=15, now=datetime(2026, 1, 2))
+    changed = jobs.reconcile_stale(con, minutes=15, now=now)
     assert changed == 1
     assert jobs.get(con, old)["status"] == "failed"
     assert "stale" in jobs.get(con, old)["error"]
     assert jobs.get(con, fresh_job)["status"] == "running", "a live job must not be killed"
+
+
+def test_a_slow_running_job_is_not_killed(tmp_path):
+    """15 minutes of crawling is slow, not dead. The running leash is 6 hours."""
+    from datetime import datetime, timedelta
+
+    con = fresh()
+    now = jobs._now()  # the module works in naive UTC; datetime.now() is local
+    job_id = jobs.create(con, kind="url", target="slow", total=50)
+    jobs._set(con, job_id, status="running")
+    con.execute("UPDATE crawl_job SET created_at = ? WHERE job_id = ?", [now - timedelta(hours=1), job_id])
+    assert jobs.reconcile_stale(con, now=now) == 0
+    assert jobs.get(con, job_id)["status"] == "running"
+
+
+def test_worker_marks_failure_instead_of_vanishing(tmp_path):
+    """The request answers 200 before the worker runs; a dead worker must still be recorded."""
+    from datetime import datetime
+
+    db_path = tmp_path / "w.duckdb"
+    setup = db.connect(str(db_path))
+    setup.execute((db.SCHEMA_PATH).read_text(encoding="utf-8"))
+    job_id = jobs.create(setup, kind="url", target="boom", total=1)
+    setup.close()
+
+    def factory():
+        return db.connect(str(db_path))
+
+    class Boom:
+        def fetch(self, url):
+            raise RuntimeError("network gone")
+
+    jobs.start(factory, Paths.build(tmp_path), Boom(), job_id, ["https://example.com/x"])
+    # the thread is a daemon; give it a moment to record its outcome
+    import time
+    for _ in range(40):
+        time.sleep(0.05)
+        check = db.connect(str(db_path))
+        try:
+            row = db.query(check, "SELECT status FROM crawl_job WHERE job_id = ?", [job_id])
+            status = None if row.empty else row.iloc[0]["status"]
+        finally:
+            check.close()
+        if status in ("done", "failed"):
+            break
+    assert status == "done", "a per-URL error is a recorded failure row, not a job failure"
