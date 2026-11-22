@@ -311,3 +311,31 @@ CREATE TABLE IF NOT EXISTS data_snapshot (
     detail        VARCHAR,
     schema_version INTEGER
 );
+
+
+CREATE TABLE IF NOT EXISTS crawl_job (
+    job_id VARCHAR PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL,
+    kind VARCHAR NOT NULL,          -- 'filing' | 'url'
+    target VARCHAR NOT NULL,        -- ticker or first url, for display
+    status VARCHAR NOT NULL,        -- queued | running | done | failed
+    total INTEGER DEFAULT 0,
+    done INTEGER DEFAULT 0,
+    error VARCHAR,
+    finished_at TIMESTAMP,
+    schema_version VARCHAR NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS crawl_result (
+    job_id VARCHAR NOT NULL,
+    seq INTEGER NOT NULL,
+    url VARCHAR NOT NULL,
+    status INTEGER,
+    bytes INTEGER,
+    title VARCHAR,
+    excerpt VARCHAR,
+    saved_path VARCHAR,
+    error VARCHAR,
+    schema_version VARCHAR NOT NULL,
+    PRIMARY KEY (job_id, seq)
+);
