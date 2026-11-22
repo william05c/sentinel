@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>SENTINEL — crawl console</title>
+<style>
+ :root{--bg:#070a0e;--panel:#0d141c;--line:#18222e;--ink:#a8bccf;--dim:#5f7284;--lit:#eaf4ff;--ok:#3ddc97;--warn:#f5c26b;--bad:#ff6b6b}
+ *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);
+   font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;padding:24px}
+ h1{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--lit);margin:0 0 16px}
+ h2{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+   border-bottom:1px solid var(--line);padding-bottom:6px;margin:22px 0 10px;font-weight:500}
+ textarea{width:100%;height:96px;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+   font:11px ui-monospace,monospace;padding:8px;border-radius:6px}
+ input[type=text]{background:var(--panel);border:1px solid var(--line);color:var(--ink);
+   padding:7px 10px;border-radius:6px;font:inherit;width:100%}
+ button{background:#0f1c26;border:1px solid #21405a;color:var(--ok);padding:7px 14px;
+   border-radius:6px;font:inherit;cursor:pointer}
+ button:hover{border-color:var(--ok)} button:disabled{color:var(--dim);border-color:var(--line);cursor:default}
+ .row{display:flex;gap:10px;align-items:flex-end;margin:8px 0}
+ .row > *{flex:1} .row button{flex:0 0 auto}
+ table{width:100%;border-collapse:collapse} th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #111a23}
+ th{color:var(--dim);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:500}
+ tr.job{cursor:pointer} tr.job:hover td{background:#0c141c}
+ .st-done{color:var(--ok)} .st-running{color:var(--warn)} .st-queued{color:var(--dim)} .st-failed{color:var(--bad)}
+ a{color:var(--ok);text-decoration:none} .muted{color:var(--dim)}
+ #msg{margin-top:8px;color:var(--warn);min-height:16px}
+</style></head><body>
+<h1>SENTINEL — crawl console</h1>
+
+<h2>new job</h2>
+<div class="row"><input type="text" id="label" placeholder="label (optional) — e.g. AAPL filings"></div>
+<div class="row"><textarea id="urls" placeholder="one URL per line&#10;https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"></textarea></div>
+<div class="row"><button id="run">run job</button><span class="muted">polite fetcher: robots, rate limit and daily budget apply</span></div>
+<div id="msg"></div>
+
+<h2>jobs</h2>
+<table><thead><tr><th>job</th><th>label</th><th>status</th><th>progress</th><th>created</th></tr></thead>
+<tbody id="jobs"><tr><td colspan="5" class="muted">no jobs yet</td></tr></tbody></table>
+
+<h2 id="detail-title">results</h2>
+<div class="row" id="detail-bar" style="display:none">
+  <button id="bundle">download .zip</button><span class="muted" id="detail-meta"></span>
+</div>
+<table><thead><tr><th>#</th><th>status</th><th>bytes</th><th>url / error</th><th>excerpt</th></tr></thead>
+<tbody id="results"><tr><td colspan="5" class="muted">select a job</td></tr></tbody></table>
+
+<script>
+var current = null;
+function esc(s){ return String(s == null ? '' : s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); }
+function statusCell(s){ return '<span class="st-' + esc(s) + '">' + esc(s) + '</span>'; }
+
+function loadJobs(){
+  fetch('api/jobs?t=' + Date.now(), {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(rows){
+    if (!rows.length) return;
+    document.getElementById('jobs').innerHTML = rows.map(function(j){
+      return '<tr class="job" data-id="' + esc(j.job_id) + '"><td>' + esc(j.job_id) + '</td><td>' + esc(j.target) +
+        '</td><td>' + statusCell(j.status) + '</td><td>' + j.done + '/' + j.total + '</td><td class="muted">' +
+        esc(String(j.created_at).slice(0,19)) + '</td></tr>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('tr.job'), function(tr){
+      tr.addEventListener('click', function(){ openJob(tr.dataset.id); });
+    });
+  }).catch(function(){});
+}
+
+function openJob(id){
+  current = id;
+  fetch('api/jobs/' + id + '?t=' + Date.now(), {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
+    document.getElementById('detail-title').textContent = 'results — ' + id;
+    document.getElementById('detail-bar').style.display = 'flex';
+    document.getElementById('detail-meta').textContent = j.status + ' · ' + j.done + '/' + j.total +
+      (j.error ? ' · ' + j.error.slice(0, 80) : '');
+    var rows = j.results || [];
+    document.getElementById('results').innerHTML = rows.length ? rows.map(function(r){
+      var label = r.error ? '<span class="st-failed">' + esc(r.error) + '</span>'
+                          : '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.url) + '</a>';
+      return '<tr><td>' + r.seq + '</td><td>' + (r.status || '-') + '</td><td>' +
+        (r.bytes == null ? '-' : r.bytes.toLocaleString()) + '</td><td>' + label +
+        '</td><td class="muted">' + esc(r.excerpt).slice(0, 120) + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="muted">no results yet</td></tr>';
+  }).catch(function(){});
+}
+
+document.getElementById('run').addEventListener('click', function(){
+  var urls = document.getElementById('urls').value.split(/\n+/).map(function(s){ return s.trim(); }).filter(Boolean);
+  var msg = document.getElementById('msg');
+  if (!urls.length) { msg.textContent = 'add at least one URL'; return; }
+  this.disabled = true;
+  fetch('api/jobs', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({urls: urls, label: document.getElementById('label').value})})
+    .then(function(r){ return r.json().then(function(b){ return {ok:r.ok, body:b}; }); })
+    .then(function(res){
+      document.getElementById('run').disabled = false;
+      if (!res.ok) { msg.textContent = res.body.detail || 'rejected'; return; }
+      msg.textContent = 'queued ' + res.body.job_id;
+      document.getElementById('urls').value = '';
+      loadJobs(); openJob(res.body.job_id);
+    }).catch(function(e){ document.getElementById('run').disabled = false; msg.textContent = String(e); });
+});
+
+document.getElementById('bundle').addEventListener('click', function(){
+  if (current) window.location = 'api/jobs/' + current + '/bundle';
+});
+
+loadJobs();
+setInterval(function(){ loadJobs(); if (current) openJob(current); }, 2500);
+</script></body></html>

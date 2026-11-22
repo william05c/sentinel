@@ -109,6 +109,69 @@ def create_app(con, paths):
                 "markdown_chars": len(rendered.markdown), "html_chars": len(rendered.html),
                 "markdown": rendered.markdown if request.markdown else ""}
 
+    class JobRequest(BaseModel):
+        urls: list[str]
+        label: str = ""
+
+    @app.post("/api/jobs")
+    def create_job(request: JobRequest):
+        from sentinel import jobs
+
+        urls = [u.strip() for u in request.urls if u.strip().startswith(("http://", "https://"))]
+        if not urls:
+            raise HTTPException(400, "supply at least one http(s) URL")
+        if len(urls) > jobs.MAX_URLS:
+            raise HTTPException(400, f"at most {jobs.MAX_URLS} URLs per job")
+
+        with db_session() as conn:
+            job_id = jobs.create(conn, kind="url", target=request.label or urls[0], total=len(urls))
+
+        # A worker runs it off the request thread when the app owns the database path.
+        # Without one (tests) the job stays queued, which is the honest state.
+        if callable(con):
+            import threading
+
+            from sentinel.config import Paths, identity, sources_config
+            from sentinel.crawler.net import HttpFetcher
+
+            def worker(job=job_id, batch=urls):
+                connection = db.connect(paths.db)
+                try:
+                    _, defaults = sources_config()
+                    root = Paths.build()
+                    with HttpFetcher(root, identity(), defaults) as fetcher:
+                        jobs.run(connection, root, fetcher, job, batch)
+                finally:
+                    connection.close()
+
+            threading.Thread(target=worker, name="crawl-" + job_id, daemon=True).start()
+        return {"job_id": job_id, "queued": len(urls)}
+
+    @app.get("/api/jobs")
+    def job_list(limit: int = 20):
+        from sentinel import jobs
+        with db_session() as conn:
+            return jobs.listing(conn, min(limit, 100))
+
+    @app.get("/api/jobs/{job_id}")
+    def job_detail(job_id: str):
+        from sentinel import jobs
+        with db_session() as conn:
+            job = jobs.get(conn, job_id)
+            if job is None:
+                raise HTTPException(404, "unknown job")
+            job["results"] = jobs.results(conn, job_id)
+        return job
+
+    @app.get("/api/jobs/{job_id}/bundle")
+    def job_bundle(job_id: str):
+        from sentinel import jobs
+        with db_session() as conn:
+            path = jobs.bundle(conn, paths, job_id)
+        if path is None or not Path(path).exists():
+            raise HTTPException(404, "nothing to download")
+        return FileResponse(str(path), filename=Path(path).name)
+
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
         return (
@@ -123,7 +186,8 @@ def create_app(con, paths):
 
     viz = Path(paths.root) / "viz"
     if viz.exists():
-        for page in ("dashboard.html", "crawler.html", "provenance.html", "data.json", "crawler.png", "provenance.png"):
+        for page in ("dashboard.html", "crawler.html", "provenance.html", "targets.html", "console.html",
+                     "data.json", "targets.json", "crawler.png", "provenance.png"):
             target = viz / page
             if target.exists():
                 app.add_api_route("/" + page, (lambda p=target: FileResponse(p)), methods=["GET"])

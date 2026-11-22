@@ -1,0 +1,97 @@
+"""Crawl jobs: they run, they record, they survive failure, and they are downloadable."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from types import SimpleNamespace
+
+import pytest
+
+from sentinel import jobs
+from sentinel.config import Paths
+
+
+class FakeFetcher:
+    def __init__(self, fail_on=()):
+        self.fail_on = set(fail_on)
+        self.calls = []
+
+    def fetch(self, url):
+        self.calls.append(url)
+        if url in self.fail_on:
+            raise RuntimeError("blocked by robots.txt")
+        body = ("<html><body><p>hello from " + url + "</p></body></html>").encode()
+        return SimpleNamespace(content=body, status=200, fetched_at=datetime(2026, 1, 1))
+
+
+def test_job_runs_and_records_every_url(con, tmp_path):
+    paths = Paths.build(tmp_path)
+    job_id = jobs.create(con, kind="url", target="test", total=2)
+    jobs.run(con, paths, FakeFetcher(), job_id, ["https://example.com/a", "https://example.com/b"])
+
+    job = jobs.get(con, job_id)
+    assert job["status"] == "done" and job["done"] == 2
+    rows = jobs.results(con, job_id)
+    assert [r["status"] for r in rows] == [200, 200]
+    assert all(r["saved_path"] for r in rows)
+    assert rows[0]["excerpt"].startswith("hello from")
+
+
+def test_one_failure_does_not_abort_the_job(con, tmp_path):
+    paths = Paths.build(tmp_path)
+    job_id = jobs.create(con, kind="url", target="mixed", total=3)
+    fetcher = FakeFetcher(fail_on=["https://example.com/bad"])
+    jobs.run(con, paths, fetcher, job_id, ["https://example.com/ok", "https://example.com/bad",
+                                           "https://example.com/ok2"])
+    job = jobs.get(con, job_id)
+    assert job["status"] == "done", "a crawl with one failure is not a failed crawl"
+    rows = jobs.results(con, job_id)
+    assert len(rows) == 3
+    failed = [r for r in rows if r["error"]]
+    assert len(failed) == 1 and "robots" in failed[0]["error"]
+
+
+def test_bundle_contains_manifest_and_files(con, tmp_path):
+    import zipfile
+    paths = Paths.build(tmp_path)
+    job_id = jobs.create(con, kind="url", target="zip", total=1)
+    jobs.run(con, paths, FakeFetcher(), job_id, ["https://example.com/a"])
+    bundle = jobs.bundle(con, paths, job_id)
+    assert bundle and bundle.exists()
+    with zipfile.ZipFile(bundle) as zf:
+        names = zf.namelist()
+    assert "manifest.csv" in names and len(names) >= 2
+
+
+def test_bundle_is_none_without_results(con, tmp_path):
+    paths = Paths.build(tmp_path)
+    job_id = jobs.create(con, kind="url", target="empty", total=0)
+    assert jobs.bundle(con, paths, job_id) is None
+
+
+def test_api_creates_and_lists_jobs(con, tmp_path):
+    fastapi = pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from sentinel.web.app import create_app
+
+    client = TestClient(create_app(con, Paths.build(tmp_path)))
+    created = client.post("/api/jobs", json={"urls": ["https://example.com/x"], "label": "demo"})
+    assert created.status_code == 200
+    job_id = created.json()["job_id"]
+    assert client.get("/api/jobs").json()[0]["job_id"] == job_id
+    detail = client.get("/api/jobs/" + job_id).json()
+    assert detail["status"] == "queued", "an unstaffed job is queued, not running"
+    assert client.get("/api/jobs/nope").status_code == 404
+
+
+def test_api_rejects_junk(con, tmp_path):
+    fastapi = pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from sentinel.web.app import create_app
+
+    client = TestClient(create_app(con, Paths.build(tmp_path)))
+    assert client.post("/api/jobs", json={"urls": ["not a url"]}).status_code == 400
+    assert client.post("/api/jobs", json={"urls": []}).status_code == 400
+    assert client.post("/api/jobs", json={"urls": ["https://x.com"] * 99}).status_code == 400
