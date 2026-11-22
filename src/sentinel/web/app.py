@@ -40,9 +40,13 @@ def create_app(con, paths):
     from contextlib import contextmanager
 
     @contextmanager
-    def db_session():
+    def db_session(write: bool = False):
+        # Reads use the read-only factory so the server never holds the write lock.
+        # A write needs a read-write connection, which cannot coexist with a reader, so
+        # it is opened only for the statement and may fail with contention - which the
+        # POST handler turns into a 503 rather than a 500.
         if callable(con):
-            connection = con()
+            connection = db.connect(paths.db) if write else con()
             try:
                 yield connection
             finally:
@@ -136,7 +140,7 @@ def create_app(con, paths):
             raise HTTPException(400, f"at most {jobs.MAX_URLS} URLs per job")
 
         try:
-            with db_session() as conn:
+            with db_session(write=True) as conn:
                 job_id = jobs.create(conn, kind="url", target=request.label or urls[0], total=len(urls))
         except Exception as exc:
             # DuckDB permits one writer. A crawl job holding it must surface as "retry",
