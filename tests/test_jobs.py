@@ -47,8 +47,9 @@ def test_one_failure_does_not_abort_the_job(con, tmp_path):
     assert job["status"] == "done", "a crawl with one failure is not a failed crawl"
     rows = jobs.results(con, job_id)
     assert len(rows) == 3
-    failed = [r for r in rows if r["error"]]
-    assert len(failed) == 1 and "robots" in failed[0]["error"]
+    errored = [(r["url"], r["error"]) for r in rows if r["error"]]
+    assert [u for u, _ in errored] == ["https://example.com/bad"], errored
+    assert "robots" in errored[0][1]
 
 
 def test_bundle_contains_manifest_and_files(con, tmp_path):
